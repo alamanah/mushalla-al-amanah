@@ -12,7 +12,7 @@ export default function Landing() {
     <div>
       <section className="bg-gradient-to-b from-primary-900 to-primary-700 text-white">
         <div className="max-w-6xl mx-auto px-4 py-16 text-center">
-          <img src="/mosque.svg" className="h-16 w-16 mx-auto mb-4" alt="" />
+          <img src={`${import.meta.env.BASE_URL}mosque.svg`} className="h-16 w-16 mx-auto mb-4" alt="" />
           <h1 className="font-serif text-3xl sm:text-4xl font-bold mb-3">Mushalla Al Amanah</h1>
           <p className="text-white/80">GKN I Denpasar</p>
           <p className="max-w-xl mx-auto mt-4 text-white/80 text-sm sm:text-base">
