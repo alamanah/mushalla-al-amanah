@@ -1,14 +1,24 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
 import { isYoutubeLiveConfigured } from "../../lib/youtube";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
-import { AboutContent, InfaqInfo, KajianSchedule, PrayerOverride, SocialLink, Ustadz } from "../../types";
+import { driveImageUrl } from "../../lib/driveLink";
+import {
+  AboutContent,
+  InfaqInfo,
+  KajianSchedule,
+  KhatibJumatSchedule,
+  PrayerOverride,
+  SocialLink,
+  Ustadz,
+} from "../../types";
 
-const TABS = ["kajian", "infaq", "sosmed", "tentang", "shalat"] as const;
+const TABS = ["kajian", "khatib", "infaq", "sosmed", "tentang", "shalat"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   kajian: "Jadwal Kajian",
+  khatib: "Jadwal Khatib Jumat",
   infaq: "Info Infaq",
   sosmed: "Media Sosial",
   tentang: "Tentang Mushalla",
@@ -37,6 +47,7 @@ export default function Settings() {
         ))}
       </div>
       {tab === "kajian" && <KajianSettings />}
+      {tab === "khatib" && <KhatibJumatSettings />}
       {tab === "infaq" && <InfaqSettings />}
       {tab === "sosmed" && <SocialSettings />}
       {tab === "tentang" && <AboutSettings />}
@@ -78,6 +89,7 @@ const emptyKajianForm = {
   time_text: "",
   location: DEFAULT_LOKASI,
   description: "",
+  foto_url: "",
 };
 
 function KajianSettings() {
@@ -89,9 +101,8 @@ function KajianSettings() {
   const [saving, setSaving] = useState(false);
 
   const [photoItem, setPhotoItem] = useState<KajianSchedule | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoLinkInput, setPhotoLinkInput] = useState("");
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   const load = () =>
     supabase
@@ -133,7 +144,12 @@ function KajianSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.jam, prayerForTanggal]);
 
-  const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(items, load);
+  const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(
+    "kajian_schedule",
+    items,
+    load,
+    (k) => k.specific_date
+  );
 
   const resetForm = () => setForm(emptyKajianForm);
 
@@ -150,6 +166,7 @@ function KajianSettings() {
       time_text: form.time_text || "Ba'da Maghrib",
       location: form.location || DEFAULT_LOKASI,
       description: form.description || null,
+      foto_url: form.foto_url.trim() || null,
       is_active: true,
     });
     setSaving(false);
@@ -167,54 +184,22 @@ function KajianSettings() {
     load();
   };
 
-  // ---- Upload foto pamflet ----
+  // ---- Link pamflet (Google Drive) ----
+  // Sesuai permintaan: pamflet TIDAK diunggah ke Supabase Storage, cukup
+  // unggah manual ke Google Drive lalu tempel link-nya di sini.
   const openPhoto = (k: KajianSchedule) => {
     setPhotoItem(k);
-    setPhotoFile(null);
-    setPhotoError(null);
+    setPhotoLinkInput(k.foto_url ?? "");
   };
   const closePhoto = () => {
     setPhotoItem(null);
-    setPhotoFile(null);
-    setPhotoError(null);
+    setPhotoLinkInput("");
   };
-  const handlePhotoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    if (file && !file.type.startsWith("image/")) {
-      setPhotoError("File harus berupa gambar.");
-      return;
-    }
-    if (file && file.size > 3 * 1024 * 1024) {
-      setPhotoError("Ukuran foto maksimal 3MB.");
-      return;
-    }
-    setPhotoError(null);
-    setPhotoFile(file);
-  };
-  const uploadPhoto = async () => {
-    if (!photoItem || !photoFile) return;
-    setPhotoUploading(true);
-    setPhotoError(null);
-    const ext = photoFile.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `kajian-poster/${photoItem.id}-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("media")
-      .upload(path, photoFile, { cacheControl: "3600", upsert: true });
-    if (uploadError) {
-      setPhotoUploading(false);
-      setPhotoError("Gagal mengunggah foto. Coba lagi.");
-      return;
-    }
-    const fotoUrl = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
-    const { error: updateError } = await supabase
-      .from("kajian_schedule")
-      .update({ foto_url: fotoUrl })
-      .eq("id", photoItem.id);
-    setPhotoUploading(false);
-    if (updateError) {
-      setPhotoError("Foto terunggah tapi gagal disimpan. Coba lagi.");
-      return;
-    }
+  const savePhotoLink = async () => {
+    if (!photoItem) return;
+    setPhotoSaving(true);
+    await supabase.from("kajian_schedule").update({ foto_url: photoLinkInput.trim() || null }).eq("id", photoItem.id);
+    setPhotoSaving(false);
     closePhoto();
     load();
   };
@@ -306,9 +291,22 @@ function KajianSettings() {
           <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
         </div>
 
-        <div className="sm:col-span-3">
+        <div className="sm:col-span-2">
           <label className="label">Deskripsi</label>
           <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </div>
+
+        <div>
+          <label className="label">Link Pamflet (Google Drive, opsional)</label>
+          <input
+            className="input"
+            placeholder="https://drive.google.com/file/d/..."
+            value={form.foto_url}
+            onChange={(e) => setForm({ ...form, foto_url: e.target.value })}
+          />
+          <p className="text-[11px] text-gray-400 mt-1">
+            Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di sini.
+          </p>
         </div>
 
         <button className="btn-primary sm:col-span-3" disabled={saving}>
@@ -331,7 +329,11 @@ function KajianSettings() {
             <div key={k.id} className="card">
               <div className="flex items-start gap-3">
                 {k.foto_url && (
-                  <img src={k.foto_url} alt="" className="h-14 w-14 rounded-lg object-cover border border-gray-100 shrink-0" />
+                  <img
+                    src={driveImageUrl(k.foto_url) ?? undefined}
+                    alt=""
+                    className="h-14 w-14 rounded-lg object-cover border border-gray-100 shrink-0"
+                  />
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -358,7 +360,7 @@ function KajianSettings() {
                       {k.is_active ? "Aktif" : "Nonaktif"}
                     </button>
                     <button className="text-xs text-primary-700" onClick={() => openPhoto(k)}>
-                      {k.foto_url ? "Ganti Pamflet" : "Upload Pamflet"}
+                      {k.foto_url ? "Ganti Link Pamflet" : "Tambah Link Pamflet"}
                     </button>
                     <button className="text-red-500 text-xs" onClick={() => remove(k.id)}>
                       Hapus
@@ -395,19 +397,22 @@ function KajianSettings() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="card max-w-sm w-full">
             <h3 className="font-semibold text-gray-800 mb-1">{photoItem.title}</h3>
-            <p className="text-xs text-gray-500 mb-3">Unggah gambar pamflet, akan tampil di beranda pada jadwal kajian ini.</p>
-            {(photoFile || photoItem.foto_url) && (
-              <img
-                src={photoFile ? URL.createObjectURL(photoFile) : photoItem.foto_url ?? undefined}
-                alt=""
-                className="w-full rounded-lg mb-3 border border-gray-100"
-              />
+            <p className="text-xs text-gray-500 mb-3">
+              Tempel link Google Drive gambar pamflet (akses "Siapa saja yang memiliki link"), akan tampil di beranda
+              pada jadwal kajian ini.
+            </p>
+            {driveImageUrl(photoLinkInput) && (
+              <img src={driveImageUrl(photoLinkInput)!} alt="" className="w-full rounded-lg mb-3 border border-gray-100" />
             )}
-            <input type="file" accept="image/*" capture="environment" className="input" onChange={handlePhotoFileChange} />
-            {photoError && <p className="text-xs text-red-600 mt-1">{photoError}</p>}
+            <input
+              className="input"
+              placeholder="https://drive.google.com/file/d/..."
+              value={photoLinkInput}
+              onChange={(e) => setPhotoLinkInput(e.target.value)}
+            />
             <div className="flex gap-2 mt-3">
-              <button className="btn-primary flex-1" disabled={!photoFile || photoUploading} onClick={uploadPhoto}>
-                {photoUploading ? "Mengunggah..." : "Simpan Foto"}
+              <button className="btn-primary flex-1" disabled={photoSaving} onClick={savePhotoLink}>
+                {photoSaving ? "Menyimpan..." : "Simpan Link"}
               </button>
               <button className="btn-secondary" onClick={closePhoto}>
                 Batal
@@ -416,6 +421,208 @@ function KajianSettings() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const emptyKhatibForm = {
+  ustadz: "",
+  ustadzCustom: "",
+  tanggal: "",
+  link_youtube: "",
+};
+
+function KhatibJumatSettings() {
+  const [items, setItems] = useState<KhatibJumatSchedule[]>([]);
+  const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
+  const [form, setForm] = useState(emptyKhatibForm);
+  const [saving, setSaving] = useState(false);
+
+  const load = () =>
+    supabase
+      .from("khatib_jumat_schedule")
+      .select("*")
+      .order("tanggal", { ascending: false })
+      .then(({ data }) => setItems((data as KhatibJumatSchedule[]) ?? []));
+
+  useEffect(() => {
+    load();
+    supabase
+      .from("ustadz")
+      .select("*")
+      .order("nama", { ascending: true })
+      .then(({ data }) => setUstadzList((data as Ustadz[]) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(
+    "khatib_jumat_schedule",
+    items,
+    load,
+    (k) => k.tanggal
+  );
+
+  const resetForm = () => setForm(emptyKhatibForm);
+
+  const namaUstadzInput = form.ustadz === "__custom__" ? form.ustadzCustom.trim() : form.ustadz;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!form.tanggal || !namaUstadzInput) return;
+    setSaving(true);
+    await supabase.from("khatib_jumat_schedule").insert({
+      tanggal: form.tanggal,
+      nama_ustadz: namaUstadzInput,
+      link_youtube: form.link_youtube.trim() || null,
+      is_active: true,
+    });
+    setSaving(false);
+    resetForm();
+    load();
+  };
+
+  const toggleActive = async (id: string, active: boolean) => {
+    await supabase.from("khatib_jumat_schedule").update({ is_active: !active }).eq("id", id);
+    load();
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from("khatib_jumat_schedule").delete().eq("id", id);
+    load();
+  };
+
+  const formatJamLog = (t: string | null) => {
+    if (!t) return "-";
+    return new Date(t).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div>
+      <form onSubmit={submit} className="card grid sm:grid-cols-3 gap-3 mb-6">
+        <h2 className="sm:col-span-3 font-semibold text-gray-800">Tambah Jadwal Khatib Jumat</h2>
+        <div>
+          <label className="label">Nama Ustadz/Khatib</label>
+          <select className="input" value={form.ustadz} onChange={(e) => setForm({ ...form, ustadz: e.target.value })}>
+            <option value="">- Pilih Ustadz -</option>
+            {ustadzList.map((u) => (
+              <option key={u.id} value={u.nama}>
+                {u.nama}
+              </option>
+            ))}
+            <option value="__custom__">+ Lainnya (ketik manual)</option>
+          </select>
+          {form.ustadz === "__custom__" && (
+            <input
+              className="input mt-2"
+              placeholder="Nama ustadz/khatib"
+              value={form.ustadzCustom}
+              onChange={(e) => setForm({ ...form, ustadzCustom: e.target.value })}
+            />
+          )}
+        </div>
+
+        <div>
+          <label className="label">Tanggal Khutbah (Jumat)</label>
+          <input
+            type="date"
+            required
+            className="input"
+            value={form.tanggal}
+            onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
+          />
+          {form.tanggal && <p className="text-xs text-gray-500 mt-1">{formatTanggalPanjang(form.tanggal)}</p>}
+        </div>
+
+        <div>
+          <label className="label">Link YouTube (opsional)</label>
+          <input
+            className="input"
+            placeholder="https://youtube.com/..."
+            value={form.link_youtube}
+            onChange={(e) => setForm({ ...form, link_youtube: e.target.value })}
+          />
+        </div>
+
+        <button className="btn-primary sm:col-span-3" disabled={saving || !namaUstadzInput}>
+          {saving ? "Menyimpan..." : "Tambah Jadwal"}
+        </button>
+      </form>
+
+      {!isYoutubeLiveConfigured() && (
+        <p className="text-xs text-yellow-600 mb-4">
+          Deteksi otomatis Live YouTube belum aktif (lihat supabase/SETUP.md bagian "Live YouTube otomatis"). Tombol
+          "Mulai Live" tetap bisa dipakai untuk membuka YouTube Studio.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {items.map((k) => {
+          const isToday = k.tanggal === todayStr();
+          const isPolling = pollingIds.has(k.id);
+          return (
+            <div key={k.id} className="card">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium">{k.nama_ustadz}</p>
+                    {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
+                    {isToday && <span className="badge bg-gold-500/20 text-gold-700">Hari ini</span>}
+                  </div>
+                  <p className="text-xs text-gray-500">{formatTanggalPanjang(k.tanggal)}</p>
+                  {k.link_youtube && (
+                    <a
+                      href={k.link_youtube}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary-700 hover:underline"
+                    >
+                      Link YouTube
+                    </a>
+                  )}
+                  {k.live_by_name && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Live terakhir dimulai oleh {k.live_by_name}, {formatJamLog(k.live_started_at)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5 items-end shrink-0">
+                  <div className="flex gap-2 items-center">
+                    <button
+                      className={`badge ${k.is_active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-500"}`}
+                      onClick={() => toggleActive(k.id, k.is_active)}
+                    >
+                      {k.is_active ? "Aktif" : "Nonaktif"}
+                    </button>
+                    <button className="text-red-500 text-xs" onClick={() => remove(k.id)}>
+                      Hapus
+                    </button>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    {k.live_video_id ? (
+                      <button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => endLive(k)}>
+                        Akhiri Live
+                      </button>
+                    ) : (
+                      <button className="btn-primary !py-1 !px-2 text-xs !bg-red-600 hover:!bg-red-700" onClick={() => startLive(k)}>
+                        Mulai Live
+                      </button>
+                    )}
+                    {isYoutubeLiveConfigured() && !k.live_video_id && (
+                      <button
+                        className="text-xs text-gray-500 hover:text-primary-700"
+                        onClick={() => checkLiveNow(k)}
+                        disabled={isPolling}
+                      >
+                        {isPolling ? "Mengecek..." : "Cek Status"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

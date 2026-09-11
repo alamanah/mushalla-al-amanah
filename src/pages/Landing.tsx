@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PrayerTimesCard from "../components/PrayerTimesCard";
 import KajianList from "../components/KajianList";
+import KhatibJumatList from "../components/KhatibJumatList";
 import InfaqCard from "../components/InfaqCard";
 import SocialLinks from "../components/SocialLinks";
 
@@ -34,7 +35,10 @@ export default function Landing() {
           <PrayerTimesCard />
         </div>
         <KajianList />
-        <InfaqCard />
+        <KhatibJumatList />
+        <div className="md:col-span-2">
+          <InfaqCard />
+        </div>
         <div className="md:col-span-2">
           <SocialLinks />
         </div>

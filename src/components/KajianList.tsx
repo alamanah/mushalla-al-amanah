@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { driveImageUrl } from "../lib/driveLink";
 import { KajianSchedule } from "../types";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -39,12 +40,12 @@ export default function KajianList() {
             <div className="flex flex-col sm:flex-row gap-4">
               {k.foto_url && (
                 <img
-                  src={k.foto_url}
+                  src={driveImageUrl(k.foto_url) ?? undefined}
                   alt=""
-                  className="w-32 h-40 sm:w-36 sm:h-44 rounded-lg object-cover border border-gray-100 shrink-0 mx-auto sm:mx-0 sm:order-2"
+                  className="w-32 h-40 sm:w-36 sm:h-44 rounded-lg object-cover border border-gray-100 shrink-0 mx-auto sm:mx-0 sm:order-1"
                 />
               )}
-              <div className="flex-1 min-w-0 sm:order-1">
+              <div className="flex-1 min-w-0 sm:order-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-medium text-gray-800">{k.title}</p>
                   {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}

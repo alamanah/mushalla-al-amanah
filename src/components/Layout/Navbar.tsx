@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 const links = [
   { to: "/", label: "Beranda" },
   { to: "/tentang", label: "Tentang" },
+  { to: "/kalender", label: "Kalender" },
   { to: "/keuangan", label: "Laporan Keuangan" },
   { to: "/bacaan", label: "Bacaan" },
 ];

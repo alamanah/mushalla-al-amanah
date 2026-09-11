@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Landing from "./pages/Landing";
 import About from "./pages/About";
+import Calendar from "./pages/Calendar";
 import FinancialReport from "./pages/FinancialReport";
 import Articles from "./pages/Articles";
 import ArticleDetail from "./pages/ArticleDetail";
@@ -36,6 +37,7 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Landing />} />
             <Route path="/tentang" element={<About />} />
+            <Route path="/kalender" element={<Calendar />} />
             <Route path="/keuangan" element={<FinancialReport />} />
             <Route path="/bacaan" element={<Articles />} />
             <Route path="/bacaan/tulis" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />

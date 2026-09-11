@@ -46,7 +46,12 @@ export default function LiveKajian() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(items, load);
+  const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(
+    "kajian_schedule",
+    items,
+    load,
+    (k) => k.specific_date
+  );
 
   if (!canEdit) {
     return (
