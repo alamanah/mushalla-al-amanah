@@ -1,0 +1,158 @@
+export type UserStatus = "pending" | "approved" | "rejected";
+export type AppRole = "admin" | "bendahara" | "inventaris" | "humas";
+
+export const ROLE_LABEL: Record<AppRole, string> = {
+  admin: "Admin",
+  bendahara: "Bendahara",
+  inventaris: "Pengelola Inventaris",
+  humas: "Humas",
+};
+
+export interface Profile {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+  status: UserStatus;
+  created_at: string;
+}
+
+export interface KajianSchedule {
+  id: string;
+  title: string;
+  ustadz: string | null;
+  day_of_week: number | null; // 0=Minggu ... 6=Sabtu, null jika tanggal spesifik
+  specific_date: string | null;
+  time_text: string;
+  location: string | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PrayerOverride {
+  id: string;
+  date: string;
+  subuh: string | null;
+  dzuhur: string | null;
+  ashar: string | null;
+  maghrib: string | null;
+  isya: string | null;
+  jumat: string | null;
+  note: string | null;
+}
+
+export interface InfaqInfo {
+  id: string;
+  bank_name: string | null;
+  account_number: string | null;
+  account_holder: string | null;
+  ewallet_name: string | null;
+  ewallet_number: string | null;
+  qr_image_url: string | null;
+  description: string | null;
+}
+
+export interface SocialLink {
+  id: string;
+  platform: string;
+  url: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AboutContent {
+  id: string;
+  content: string;
+  updated_at: string;
+}
+
+export type FinancialJenis = "BRI" | "BSI" | "UP Tunai";
+
+export const FINANCIAL_JENIS: FinancialJenis[] = ["BRI", "BSI", "UP Tunai"];
+
+export type FinancialKriteria =
+  | "Saldo Awal"
+  | "Transfer"
+  | "Setor Tunai Jumat"
+  | "QRIS"
+  | "Admin"
+  | "Gaji"
+  | "Kegiatan Dakwah"
+  | "Kegiatan Sosial"
+  | "Kegiatan Sarpras"
+  | "Lainnya"
+  | "Ramadhan"
+  | "Dana Pengqurban"
+  | "Qurban"
+  | "Donasi";
+
+export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
+  "Saldo Awal",
+  "Transfer",
+  "Setor Tunai Jumat",
+  "QRIS",
+  "Admin",
+  "Gaji",
+  "Kegiatan Dakwah",
+  "Kegiatan Sosial",
+  "Kegiatan Sarpras",
+  "Lainnya",
+  "Ramadhan",
+  "Dana Pengqurban",
+  "Qurban",
+  "Donasi",
+];
+
+export interface FinancialTransaction {
+  id: string;
+  tanggal: string | null; // ISO timestamptz, null hanya utk Saldo Awal tanpa tanggal
+  periode: string; // mis. "Pekan 1"
+  uraian: string | null; // deskripsi mentah asli dari rekening koran
+  kriteria: FinancialKriteria;
+  debet: number; // uang MASUK (perspektif kas mushalla)
+  kredit: number; // uang KELUAR (perspektif kas mushalla)
+  keterangan: string | null;
+  jenis: FinancialJenis;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** Baris transaksi hasil parsing file, sebelum disimpan ke database. */
+export interface DraftTransaction {
+  tanggal: string; // datetime-local string "YYYY-MM-DDTHH:mm"
+  uraian: string;
+  kriteria: FinancialKriteria;
+  debet: number;
+  kredit: number;
+  keterangan: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  nama_barang: string;
+  kategori: string | null;
+  jumlah: number;
+  kondisi: string | null;
+  lokasi: string | null;
+  tanggal_perolehan: string | null;
+  catatan: string | null;
+  created_by: string | null;
+  updated_at: string;
+}
+
+export type ArticleStatus = "draft" | "pending" | "published" | "rejected";
+
+export interface Article {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  cover_image_url: string | null;
+  author_id: string | null;
+  author_name: string | null;
+  status: ArticleStatus;
+  rejection_note: string | null;
+  published_at: string | null;
+  created_at: string;
+}
