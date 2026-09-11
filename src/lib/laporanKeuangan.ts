@@ -13,13 +13,14 @@ export const KRITERIA_BUKA_PUASA: FinancialKriteria[] = ["Infaq Buka Puasa"];
  * tidak dobel/salah arah waktu tabel_up_bank & tabel_up_tunai digabung. */
 export const KRITERIA_TRANSFER_UP_TUNAI: FinancialKriteria[] = ["Setor UP Tunai", "Terima UP Tunai"];
 
-/** Buka Puasa itu khusus: selain Kriteria "Infaq Buka Puasa", transaksi APAPUN
- * krtterianya tapi Keterangan-nya menyebut "Buka Puasa" tetap dianggap masuk
- * tab/dana Buka Puasa (mis. dicatat manual dengan kriteria "Lainnya" tapi
- * keterangan "Infaq Buka Puasa RT 05"). */
+/** Transaksi dianggap dana Buka Puasa HANYA berdasarkan Kriteria "Infaq Buka
+ * Puasa" (sejak Migrasi 011 dana ini punya tabelnya sendiri). Sebelumnya
+ * fungsi ini juga mencocokkan teks "buka puasa" di Keterangan, tapi itu
+ * salah menangkap transaksi lain yang sekadar menyebut kata itu di
+ * keterangan (mis. Kriteria "Kegiatan Dakwah" dengan keterangan "Kebutuhan
+ * buka puasa Jumat Berkah") sehingga tidak ikut terhitung di Laporan. */
 export function isBukaPuasa(t: Pick<FinancialTransaction, "kriteria" | "keterangan">): boolean {
-  if (KRITERIA_BUKA_PUASA.includes(t.kriteria)) return true;
-  return (t.keterangan ?? "").toLowerCase().includes("buka puasa");
+  return KRITERIA_BUKA_PUASA.includes(t.kriteria);
 }
 
 const EXCLUDED_KRITERIA_DARI_LAPORAN: FinancialKriteria[] = [
