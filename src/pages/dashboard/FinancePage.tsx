@@ -111,21 +111,39 @@ export default function FinancePage() {
     load();
   }, []);
 
-  const byJenis = useMemo(() => computeRunningSaldoByJenis(items), [items]);
-  const combinedRows = useMemo(() => computeRunningSaldo(items), [items]);
-  const qurbanRows = useMemo(
-    () => computeRunningSaldo(items.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
+  // Kas UP Tunai: KHUSUS baris berkriteria "Setor UP Tunai", bendahara
+  // mencatat mengikuti kebiasaan input rekening bank (uang masuk ke kas
+  // ditulis di kolom Kredit), padahal dari sudut pandang kas UP Tunai itu
+  // adalah uang MASUK (Debet). Jadi hanya baris kriteria tsb yang
+  // Debet/Kredit-nya ditukar sebelum dihitung saldo berjalan -- kriteria UP
+  // Tunai lainnya (mis. pengeluaran kegiatan) tetap normal apa adanya. Data
+  // di database TIDAK berubah, ini murni normalisasi tampilan.
+  const normalizedItems = useMemo(
+    () =>
+      items.map((t) =>
+        t.jenis === "UP Tunai" && t.kriteria === "Setor UP Tunai" ? { ...t, debet: t.kredit, kredit: t.debet } : t
+      ),
     [items]
+  );
+
+  const byJenis = useMemo(() => computeRunningSaldoByJenis(normalizedItems), [normalizedItems]);
+  const combinedRows = useMemo(() => computeRunningSaldo(normalizedItems), [normalizedItems]);
+  const qurbanRows = useMemo(
+    () => computeRunningSaldo(normalizedItems.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
+    [normalizedItems]
   );
   const donasiRows = useMemo(
-    () => computeRunningSaldo(items.filter((t) => KRITERIA_DONASI.includes(t.kriteria))),
-    [items]
+    () => computeRunningSaldo(normalizedItems.filter((t) => KRITERIA_DONASI.includes(t.kriteria))),
+    [normalizedItems]
   );
   const ramadhanRows = useMemo(
-    () => computeRunningSaldo(items.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
-    [items]
+    () => computeRunningSaldo(normalizedItems.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
+    [normalizedItems]
   );
-  const bukaPuasaRows = useMemo(() => computeRunningSaldo(items.filter((t) => isBukaPuasa(t))), [items]);
+  const bukaPuasaRows = useMemo(
+    () => computeRunningSaldo(normalizedItems.filter((t) => isBukaPuasa(t))),
+    [normalizedItems]
+  );
 
   const isRekap = activeTab === "Rekapitulasi";
   const isLaporan = activeTab === "Laporan";
@@ -150,14 +168,6 @@ export default function FinancePage() {
     ? []
     : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
-
-  // Kas UP Tunai kebalikan dari rekening bank (lihat catatan di updateDraft):
-  // uang masuk ke kas dicatat sebagai Kredit, jadi KHUSUS tampilan tab UP
-  // Tunai, Debet/Kredit & Saldo ditukar/dibalik supaya saldo kas terlihat
-  // positif seperti semestinya. Data di database TIDAK berubah, ini murni
-  // tampilan.
-  const isUpTunaiTab = activeTab === "UP Tunai";
-  const displaySaldoTerkini = isUpTunaiTab ? -saldoTerkini : saldoTerkini;
 
   const totalPages = Math.max(1, Math.ceil(currentRows.length / pageSize));
   const pageRows = currentRows.slice((page - 1) * pageSize, page * pageSize);
@@ -624,7 +634,7 @@ export default function FinancePage() {
         <span className="text-sm text-gray-500">
           {isRekap ? "Saldo Gabungan (BRI + BSI + UP Tunai) saat ini" : `Saldo ${activeTab} saat ini`}
         </span>
-        <span className="text-xl font-bold text-primary-800">{formatRupiah(displaySaldoTerkini)}</span>
+        <span className="text-xl font-bold text-primary-800">{formatRupiah(saldoTerkini)}</span>
       </div>
 
       {canEdit && selectedIds.size > 0 && (
@@ -724,22 +734,13 @@ export default function FinancePage() {
                       t.keterangan
                     )}
                   </td>
-                  {(() => {
-                    const dispDebet = isUpTunaiTab ? t.kredit : t.debet;
-                    const dispKredit = isUpTunaiTab ? t.debet : t.kredit;
-                    const dispSaldo = isUpTunaiTab ? -t.saldo : t.saldo;
-                    return (
-                      <>
-                        <td className="py-2 pr-3 text-right text-primary-700 truncate">
-                          {dispDebet > 0 ? formatRupiah(dispDebet) : ""}
-                        </td>
-                        <td className="py-2 pr-3 text-right text-red-600 truncate">
-                          {dispKredit > 0 ? formatRupiah(dispKredit) : ""}
-                        </td>
-                        <td className="py-2 pr-3 text-right font-medium truncate">{formatRupiah(dispSaldo)}</td>
-                      </>
-                    );
-                  })()}
+                  <td className="py-2 pr-3 text-right text-primary-700 truncate">
+                    {t.debet > 0 ? formatRupiah(t.debet) : ""}
+                  </td>
+                  <td className="py-2 pr-3 text-right text-red-600 truncate">
+                    {t.kredit > 0 ? formatRupiah(t.kredit) : ""}
+                  </td>
+                  <td className="py-2 pr-3 text-right font-medium truncate">{formatRupiah(t.saldo)}</td>
                   <td className="py-2 pr-3 whitespace-nowrap text-center">
                     {editingId === t.id ? (
                       <>
