@@ -37,9 +37,6 @@ export default function KajianList() {
         {items.map((k) => (
           <li key={k.id} className="py-3">
             <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-              {k.foto_url && (
-                <img src={k.foto_url} alt="" className="h-20 w-20 rounded-lg object-cover border border-gray-100 shrink-0" />
-              )}
               <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -56,6 +53,13 @@ export default function KajianList() {
                   {k.time_text}
                 </div>
               </div>
+              {k.foto_url && (
+                <img
+                  src={k.foto_url}
+                  alt=""
+                  className="h-20 w-20 rounded-lg object-cover border border-gray-100 shrink-0 order-first sm:order-last"
+                />
+              )}
             </div>
             {k.live_video_id && (
               <div className="mt-3 aspect-video rounded-lg overflow-hidden border border-gray-100">
