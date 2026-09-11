@@ -107,39 +107,25 @@ export default function FinancePage() {
     load();
   }, []);
 
-  // Kas UP Tunai: KHUSUS baris berkriteria "Setor UP Tunai", bendahara
-  // mencatat mengikuti kebiasaan input rekening bank (uang masuk ke kas
-  // ditulis di kolom Kredit), padahal dari sudut pandang kas UP Tunai itu
-  // adalah uang MASUK (Debet). Jadi hanya baris kriteria tsb yang
-  // Debet/Kredit-nya ditukar sebelum dihitung saldo berjalan -- kriteria UP
-  // Tunai lainnya (mis. pengeluaran kegiatan) tetap normal apa adanya. Data
-  // di database TIDAK berubah, ini murni normalisasi tampilan.
-  const normalizedItems = useMemo(
-    () =>
-      items.map((t) =>
-        t.jenis === "UP Tunai" && t.kriteria === "Setor UP Tunai" ? { ...t, debet: t.kredit, kredit: t.debet } : t
-      ),
+  // Kas UP Tunai: baris Kriteria "Setor UP Tunai" sekarang selalu dibuat
+  // sudah benar di Debet sejak awal (lihat fitur jurnal kontra saat upload
+  // rekening koran & input manual), jadi ditampilkan apa adanya tanpa
+  // ditukar lagi -- tidak ada lagi normalisasi Debet/Kredit di sini.
+  const byJenis = useMemo(() => computeRunningSaldoByJenis(items), [items]);
+  const combinedRows = useMemo(() => computeRunningSaldo(items), [items]);
+  const qurbanRows = useMemo(
+    () => computeRunningSaldo(items.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
     [items]
   );
-
-  const byJenis = useMemo(() => computeRunningSaldoByJenis(normalizedItems), [normalizedItems]);
-  const combinedRows = useMemo(() => computeRunningSaldo(normalizedItems), [normalizedItems]);
-  const qurbanRows = useMemo(
-    () => computeRunningSaldo(normalizedItems.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
-    [normalizedItems]
-  );
   const donasiRows = useMemo(
-    () => computeRunningSaldo(normalizedItems.filter((t) => KRITERIA_DONASI.includes(t.kriteria))),
-    [normalizedItems]
+    () => computeRunningSaldo(items.filter((t) => KRITERIA_DONASI.includes(t.kriteria))),
+    [items]
   );
   const ramadhanRows = useMemo(
-    () => computeRunningSaldo(normalizedItems.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
-    [normalizedItems]
+    () => computeRunningSaldo(items.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
+    [items]
   );
-  const bukaPuasaRows = useMemo(
-    () => computeRunningSaldo(normalizedItems.filter((t) => isBukaPuasa(t))),
-    [normalizedItems]
-  );
+  const bukaPuasaRows = useMemo(() => computeRunningSaldo(items.filter((t) => isBukaPuasa(t))), [items]);
 
   const isRekap = activeTab === "Rekapitulasi";
   const isLaporan = activeTab === "Laporan";
