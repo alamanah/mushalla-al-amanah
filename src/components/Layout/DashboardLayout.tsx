@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import BottomNav from "./BottomNav";
 
 export default function DashboardLayout() {
   const { profile, isAdmin, hasRole, signOut } = useAuth();
@@ -15,6 +16,12 @@ export default function DashboardLayout() {
     { to: "/dashboard/pengaturan", label: "Pengaturan Konten", show: isAdmin || hasRole("humas") },
   ];
 
+  // Menu yang sudah punya tempat sendiri di bottom nav (mobile) tidak perlu
+  // diulang di menu "Lainnya" bottom nav.
+  const moreItems = items
+    .filter((i) => i.show && i.to !== "/dashboard" && i.to !== "/dashboard/keuangan" && i.to !== "/dashboard/inventaris")
+    .map((i) => ({ to: i.to, label: i.label }));
+
   const handleLogout = async () => {
     await signOut();
     navigate("/");
@@ -22,7 +29,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      <aside className="w-60 bg-primary-950 text-white flex flex-col shrink-0">
+      <aside className="hidden sm:flex w-60 bg-primary-950 text-white flex-col shrink-0">
         <Link to="/" className="flex items-center gap-2 px-4 h-16 border-b border-white/10 font-serif font-bold">
           <img src={`${import.meta.env.BASE_URL}mosque.svg`} className="h-7 w-7" alt="" />
           Al Amanah
@@ -71,12 +78,13 @@ export default function DashboardLayout() {
             Keluar
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-20 sm:pb-0">
           <div className="max-w-7xl mx-auto p-6">
             <Outlet />
           </div>
         </div>
       </div>
+      <BottomNav moreItems={moreItems} />
     </div>
   );
 }

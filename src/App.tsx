@@ -24,6 +24,8 @@ import ArticleModeration from "./pages/dashboard/ArticleModeration";
 import FinancePage from "./pages/dashboard/FinancePage";
 import InventoryPage from "./pages/dashboard/InventoryPage";
 import Settings from "./pages/dashboard/Settings";
+import RekamTransaksi from "./pages/dashboard/RekamTransaksi";
+import TambahBarang from "./pages/dashboard/TambahBarang";
 
 export default function App() {
   return (
@@ -87,10 +89,26 @@ export default function App() {
               }
             />
             <Route
+              path="keuangan/rekam"
+              element={
+                <ProtectedRoute roles={["bendahara"]}>
+                  <RekamTransaksi />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="inventaris"
               element={
                 <ProtectedRoute roles={["admin", "inventaris"]}>
                   <InventoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="inventaris/tambah"
+              element={
+                <ProtectedRoute roles={["inventaris"]}>
+                  <TambahBarang />
                 </ProtectedRoute>
               }
             />

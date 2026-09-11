@@ -694,7 +694,7 @@ export default function InventoryPage() {
                 photoFile || photoItem.foto_url ? "" : "hidden"
               }`}
             />
-            <input type="file" accept="image/*" className="input" onChange={handlePhotoFileChange} />
+            <input type="file" accept="image/*" capture="environment" className="input" onChange={handlePhotoFileChange} />
             {photoError && <p className="text-sm text-red-600">{photoError}</p>}
             <div className="flex gap-2 pt-1">
               <button className="btn-primary flex-1" disabled={!photoFile || photoUploading} onClick={uploadPhoto}>
@@ -786,7 +786,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <label className="label">Upload Foto Dokumentasi</label>
-              <input type="file" accept="image/*" className="input" onChange={handleDisposalFotoChange} />
+              <input type="file" accept="image/*" capture="environment" className="input" onChange={handleDisposalFotoChange} />
             </div>
             {disposalError && <p className="text-sm text-red-600">{disposalError}</p>}
             <div className="flex gap-2 pt-1">
@@ -846,7 +846,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <label className="label">Upload Foto Dokumentasi</label>
-              <input type="file" accept="image/*" className="input" onChange={handleDisposalFotoChange} />
+              <input type="file" accept="image/*" capture="environment" className="input" onChange={handleDisposalFotoChange} />
             </div>
             {disposalError && <p className="text-sm text-red-600">{disposalError}</p>}
             <div className="flex gap-2 pt-1">

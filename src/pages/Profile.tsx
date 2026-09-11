@@ -125,6 +125,7 @@ export default function Profile() {
               <input
                 type="file"
                 accept="image/*"
+                capture="user"
                 className="hidden"
                 onChange={handleAvatarChange}
                 disabled={avatarUploading}
