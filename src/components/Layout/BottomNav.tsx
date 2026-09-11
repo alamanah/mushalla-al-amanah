@@ -37,10 +37,11 @@ function MoreIcon() {
     </svg>
   );
 }
-function PlusIcon() {
+function LiveIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.3} className="h-6 w-6">
-      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+      <rect x="3" y="6" width="13" height="12" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m16 10.5 5-3v9l-5-3Z" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -62,17 +63,13 @@ export default function BottomNav({ moreItems }: { moreItems: MoreItem[] }) {
   const navigate = useNavigate();
   const [showMore, setShowMore] = useState(false);
 
-  const canBendahara = isAdmin || hasRole("bendahara");
-  const canInventaris = isAdmin || hasRole("inventaris");
-
-  // Aksi cepat (tombol tengah "+"): sesuaikan dengan role tulis user. Kalau
-  // punya kedua role (jarang), utamakan Keuangan; kalau tidak ada role tulis
-  // sama sekali, tombol tidak ditampilkan (hanya admin/humas baca-saja dsb).
-  const quickAction = hasRole("bendahara")
-    ? { to: "/dashboard/keuangan/rekam", label: "Rekam Transaksi" }
-    : hasRole("inventaris")
-    ? { to: "/dashboard/inventaris/tambah", label: "Tambah Barang" }
-    : null;
+  // Menu bawah di HP fokus untuk AKSI (rekam data), bukan untuk melihat
+  // laporan/daftar lengkap -- jadi hanya ditampilkan untuk pemegang role
+  // terkait (bukan admin yang read-only). Untuk lihat data lengkap, admin
+  // tetap bisa lewat menu "Lainnya".
+  const canBendahara = hasRole("bendahara");
+  const canInventaris = hasRole("inventaris");
+  const canLiveKajian = isAdmin || hasRole("humas");
 
   const handleLogout = async () => {
     await signOut();
@@ -142,24 +139,19 @@ export default function BottomNav({ moreItems }: { moreItems: MoreItem[] }) {
             Ringkasan
           </NavLink>
           {canBendahara && (
-            <NavLink to="/dashboard/keuangan" className={linkClass}>
+            <NavLink to="/dashboard/keuangan/rekam" className={linkClass}>
               <WalletIcon />
               Keuangan
             </NavLink>
           )}
-          {quickAction && (
-            <div className="flex-1 flex items-center justify-center">
-              <Link
-                to={quickAction.to}
-                aria-label={quickAction.label}
-                className="h-12 w-12 rounded-full bg-primary-700 text-white flex items-center justify-center shadow-lg shadow-primary-700/30 -mt-5 border-4 border-white"
-              >
-                <PlusIcon />
-              </Link>
-            </div>
+          {canLiveKajian && (
+            <NavLink to="/dashboard/kajian-live" className={linkClass}>
+              <LiveIcon />
+              Live
+            </NavLink>
           )}
           {canInventaris && (
-            <NavLink to="/dashboard/inventaris" className={linkClass}>
+            <NavLink to="/dashboard/inventaris/tambah" className={linkClass}>
               <BoxIcon />
               Inventaris
             </NavLink>

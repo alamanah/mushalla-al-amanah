@@ -26,6 +26,7 @@ import InventoryPage from "./pages/dashboard/InventoryPage";
 import Settings from "./pages/dashboard/Settings";
 import RekamTransaksi from "./pages/dashboard/RekamTransaksi";
 import TambahBarang from "./pages/dashboard/TambahBarang";
+import LiveKajian from "./pages/dashboard/LiveKajian";
 
 export default function App() {
   return (
@@ -117,6 +118,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin", "humas"]}>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="kajian-live"
+              element={
+                <ProtectedRoute roles={["admin", "humas"]}>
+                  <LiveKajian />
                 </ProtectedRoute>
               }
             />

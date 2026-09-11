@@ -1,8 +1,8 @@
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { useAuth } from "../../context/AuthContext";
 import { fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
-import { findLiveVideoId, isYoutubeLiveConfigured } from "../../lib/youtube";
+import { isYoutubeLiveConfigured } from "../../lib/youtube";
+import { todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { AboutContent, InfaqInfo, KajianSchedule, PrayerOverride, SocialLink, Ustadz } from "../../types";
 
 const TABS = ["kajian", "infaq", "sosmed", "tentang", "shalat"] as const;
@@ -46,17 +46,6 @@ export default function Settings() {
 }
 
 const DEFAULT_LOKASI = "Mushalla Al Amanah GKN I Denpasar";
-const LIVE_POLL_MS = 20000; // jeda antar percobaan cek status live sesudah tombol "Mulai Live"
-const LIVE_POLL_ATTEMPTS = 10; // ~3-4 menit percobaan otomatis sebelum berhenti
-const BG_POLL_MS = 45000; // jeda cek berkala di kajian hari ini yang belum live
-
-function todayStr() {
-  // Pakai komponen tanggal LOKAL (bukan toISOString/UTC) supaya tidak salah
-  // tanggal saat dini hari WITA (UTC+8) dibanding UTC.
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function formatTanggalPanjang(tgl: string) {
   const [y, m, d] = tgl.split("-").map(Number);
@@ -92,7 +81,6 @@ const emptyKajianForm = {
 };
 
 function KajianSettings() {
-  const { user, profile } = useAuth();
   const [items, setItems] = useState<KajianSchedule[]>([]);
   const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
   const [form, setForm] = useState(emptyKajianForm);
@@ -104,9 +92,6 @@ function KajianSettings() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-
-  const [pollingIds, setPollingIds] = useState<Set<string>>(new Set());
-  const pollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const load = () =>
     supabase
@@ -148,30 +133,7 @@ function KajianSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.jam, prayerForTanggal]);
 
-  // Pantau berkala kajian HARI INI yang belum ada live_video_id -- otomatis
-  // terdeteksi begitu channel YouTube mulai live, tanpa perlu tempel link manual.
-  useEffect(() => {
-    if (!isYoutubeLiveConfigured()) return;
-    const pending = items.filter((k) => k.specific_date === todayStr() && k.is_active && !k.live_video_id);
-    if (pending.length === 0) return;
-    const interval = setInterval(async () => {
-      const videoId = await findLiveVideoId();
-      if (videoId) {
-        await Promise.all(
-          pending.map((k) => supabase.from("kajian_schedule").update({ live_video_id: videoId }).eq("id", k.id))
-        );
-        load();
-      }
-    }, BG_POLL_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
-
-  useEffect(() => {
-    // Bersihkan semua timer polling manual saat komponen unmount.
-    const timers = pollTimers.current;
-    return () => Object.values(timers).forEach(clearTimeout);
-  }, []);
+  const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(items, load);
 
   const resetForm = () => setForm(emptyKajianForm);
 
@@ -254,61 +216,6 @@ function KajianSettings() {
       return;
     }
     closePhoto();
-    load();
-  };
-
-  // ---- Live YouTube ----
-  const stopPolling = (id: string) => {
-    if (pollTimers.current[id]) {
-      clearTimeout(pollTimers.current[id]);
-      delete pollTimers.current[id];
-    }
-    setPollingIds((s) => {
-      const next = new Set(s);
-      next.delete(id);
-      return next;
-    });
-  };
-
-  const pollAttempt = (id: string, attemptsLeft: number) => {
-    findLiveVideoId().then(async (videoId) => {
-      if (videoId) {
-        await supabase.from("kajian_schedule").update({ live_video_id: videoId }).eq("id", id);
-        stopPolling(id);
-        load();
-        return;
-      }
-      if (attemptsLeft <= 1) {
-        stopPolling(id);
-        return;
-      }
-      pollTimers.current[id] = setTimeout(() => pollAttempt(id, attemptsLeft - 1), LIVE_POLL_MS);
-    });
-  };
-
-  const startLive = async (k: KajianSchedule) => {
-    window.open("https://studio.youtube.com/live?action=create", "_blank", "noopener");
-    await supabase
-      .from("kajian_schedule")
-      .update({
-        live_by_name: profile?.full_name ?? user?.email ?? "Humas",
-        live_started_at: new Date().toISOString(),
-      })
-      .eq("id", k.id);
-    load();
-    if (isYoutubeLiveConfigured()) {
-      setPollingIds((s) => new Set(s).add(k.id));
-      pollAttempt(k.id, LIVE_POLL_ATTEMPTS);
-    }
-  };
-
-  const checkLiveNow = (k: KajianSchedule) => {
-    setPollingIds((s) => new Set(s).add(k.id));
-    pollAttempt(k.id, 1);
-  };
-
-  const endLive = async (k: KajianSchedule) => {
-    await supabase.from("kajian_schedule").update({ live_video_id: null }).eq("id", k.id);
     load();
   };
 

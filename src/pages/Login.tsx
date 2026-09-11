@@ -18,9 +18,9 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setLoading(false);
       setError(
         error.message.includes("Email not confirmed")
           ? "Email belum dikonfirmasi. Silakan cek inbox/spam email kamu untuk link konfirmasi."
@@ -28,7 +28,15 @@ export default function Login() {
       );
       return;
     }
-    navigate("/");
+    // Yang punya akses Dashboard (admin/bendahara/inventaris/humas) langsung
+    // diarahkan ke Dashboard; jamaah biasa (tanpa role) tetap ke beranda.
+    let hasDashboardRole = false;
+    if (data.user) {
+      const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+      hasDashboardRole = (roleRows ?? []).length > 0;
+    }
+    setLoading(false);
+    navigate(hasDashboardRole ? "/dashboard" : "/");
   };
 
   const openForgotPassword = () => {
