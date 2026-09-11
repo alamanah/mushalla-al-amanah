@@ -146,6 +146,7 @@ export interface InventoryItem {
   kondisi: string | null;
   lokasi: string | null;
   tahun_perolehan: number | null;
+  foto_url: string | null;
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;

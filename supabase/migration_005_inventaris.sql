@@ -51,6 +51,10 @@ alter table public.inventory_items add column if not exists kategori_kode text;
 alter table public.inventory_items add column if not exists nilai numeric(14, 2) not null default 0;
 alter table public.inventory_items add column if not exists tahun_perolehan int;
 alter table public.inventory_items add column if not exists created_by_name text;
+-- Tabel inventory_items versi lama tidak punya kolom created_at (hanya
+-- updated_at) -- tambahkan supaya sejajar dengan struktur baru & bisa
+-- dipakai untuk urutan pengisian Kode Barang di bawah.
+alter table public.inventory_items add column if not exists created_at timestamptz not null default now();
 
 -- Backfill data lama (kalau ada): semua barang lama dipetakan ke kategori
 -- "Barang Lainnya" (9000) dan diberi Kode Barang baru secara berurutan --

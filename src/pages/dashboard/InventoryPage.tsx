@@ -37,6 +37,19 @@ function TrashIcon() {
   );
 }
 
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
+      <path
+        d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-1.6A1 1 0 0 1 9.36 5h5.28a1 1 0 0 1 .86.4L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13" r="3.2" />
+    </svg>
+  );
+}
+
 const KONDISI_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Berat"];
 
 const emptyForm = {
@@ -84,6 +97,11 @@ export default function InventoryPage() {
 
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [photoItem, setPhotoItem] = useState<InventoryItem | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const categoryMap = useMemo(() => {
     const m = new Map<string, InventoryCategory>();
@@ -195,6 +213,65 @@ export default function InventoryPage() {
       lokasi: item.lokasi ?? "",
       tahun_perolehan: item.tahun_perolehan ? String(item.tahun_perolehan) : "",
     });
+  };
+
+  const openPhoto = (item: InventoryItem) => {
+    setPhotoItem(item);
+    setPhotoFile(null);
+    setPhotoError(null);
+  };
+
+  const closePhoto = () => {
+    setPhotoItem(null);
+    setPhotoFile(null);
+    setPhotoError(null);
+  };
+
+  const handlePhotoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (file && !file.type.startsWith("image/")) {
+      setPhotoError("File harus berupa gambar.");
+      return;
+    }
+    if (file && file.size > 3 * 1024 * 1024) {
+      setPhotoError("Ukuran foto maksimal 3MB.");
+      return;
+    }
+    setPhotoError(null);
+    setPhotoFile(file);
+  };
+
+  const uploadPhoto = async () => {
+    if (!photoItem || !photoFile) return;
+    setPhotoUploading(true);
+    setPhotoError(null);
+
+    const ext = photoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `inventory-items/${photoItem.kode_barang}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("media")
+      .upload(path, photoFile, { cacheControl: "3600", upsert: true });
+
+    if (uploadError) {
+      setPhotoUploading(false);
+      setPhotoError("Gagal mengunggah foto. Coba lagi.");
+      return;
+    }
+
+    const fotoUrl = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
+    const { error: updateError } = await supabase
+      .from("inventory_items")
+      .update({ foto_url: fotoUrl })
+      .eq("id", photoItem.id);
+
+    setPhotoUploading(false);
+    if (updateError) {
+      setPhotoError("Foto terunggah tapi gagal disimpan ke data barang. Coba lagi.");
+      return;
+    }
+
+    closePhoto();
+    load();
   };
 
   const openDisposal = (item: InventoryItem) => {
@@ -458,6 +535,13 @@ export default function InventoryPage() {
                         </button>
                         {canEdit && (
                           <>
+                            <button
+                              className={it.foto_url ? "text-primary-600 hover:text-primary-800" : "hover:text-primary-700"}
+                              title={it.foto_url ? "Ganti Foto Barang" : "Upload Foto Barang"}
+                              onClick={() => openPhoto(it)}
+                            >
+                              <CameraIcon />
+                            </button>
                             <button className="hover:text-primary-700" title="Ubah" onClick={() => edit(it)}>
                               <EditIcon />
                             </button>
@@ -542,6 +626,13 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setDetailRow(null)}>
           <div className="card max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-lg font-bold text-primary-900 mb-4">Detil Barang</h3>
+            {detailRow.foto_url && (
+              <img
+                src={detailRow.foto_url}
+                alt={detailRow.nama_barang}
+                className="w-full max-h-56 object-cover rounded-lg border border-gray-200 mb-4"
+              />
+            )}
             <dl className="space-y-2 text-sm">
               {(
                 [
@@ -566,6 +657,35 @@ export default function InventoryPage() {
             <button className="btn-secondary w-full mt-4" onClick={() => setDetailRow(null)}>
               Tutup
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal upload foto barang */}
+      {photoItem && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={closePhoto}>
+          <div className="card max-w-sm w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-serif text-lg font-bold text-primary-900">Foto Barang</h3>
+            <p className="text-sm text-gray-500">
+              {photoItem.nama_barang} ({photoItem.kode_barang})
+            </p>
+            <img
+              src={photoFile ? URL.createObjectURL(photoFile) : photoItem.foto_url ?? undefined}
+              alt=""
+              className={`w-full max-h-48 object-cover rounded-lg border border-gray-200 ${
+                photoFile || photoItem.foto_url ? "" : "hidden"
+              }`}
+            />
+            <input type="file" accept="image/*" className="input" onChange={handlePhotoFileChange} />
+            {photoError && <p className="text-sm text-red-600">{photoError}</p>}
+            <div className="flex gap-2 pt-1">
+              <button className="btn-primary flex-1" disabled={!photoFile || photoUploading} onClick={uploadPhoto}>
+                {photoUploading ? "Mengunggah..." : "Simpan Foto"}
+              </button>
+              <button className="btn-secondary" onClick={closePhoto}>
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

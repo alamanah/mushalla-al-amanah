@@ -153,6 +153,7 @@ create table if not exists public.inventory_items (
   kondisi text,
   lokasi text,
   tahun_perolehan int,
+  foto_url text, -- foto dokumentasi barang (opsional)
   created_by uuid references public.profiles (id) on delete set null,
   created_by_name text, -- snapshot nama pencatat saat itu (supaya tetap tampil walau lintas role)
   created_at timestamptz not null default now(),

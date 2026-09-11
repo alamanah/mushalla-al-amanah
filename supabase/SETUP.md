@@ -56,6 +56,12 @@ Inventaris** (Kode Barang otomatis, Nilai, Tahun Perolehan, riwayat Hibah/Hapus)
    (kalau ada) otomatis dipetakan ke kategori "Barang Lainnya" (9000) dengan Kode Barang
    baru; silakan koreksi Kategori-nya manual lewat Dashboard → Inventaris setelah migrasi.
 
+Kalau kamu sudah pernah menjalankan migrasi (1)-(5) dan sekarang cuma perlu menambahkan
+**foto barang** di Inventaris, jalankan:
+
+6. [`migration_006_foto_barang.sql`](./migration_006_foto_barang.sql) — tambah kolom
+   `foto_url` pada `inventory_items`.
+
 Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,
