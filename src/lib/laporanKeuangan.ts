@@ -4,9 +4,9 @@ import { computeRunningSaldo } from "./saldo";
 /** Kriteria yang dikelola di tab tersendiri (Qurban/Donasi/Ramadhan/Buka Puasa)
  * dan TIDAK masuk ke perhitungan Laporan Keuangan mingguan (dana khusus, di
  * luar kas umum). */
-export const KRITERIA_QURBAN: FinancialKriteria[] = ["Qurban", "Dana Pengqurban"];
+export const KRITERIA_QURBAN: FinancialKriteria[] = ["Qurban", "Setor UM Qurban", "Terima UM Qurban"];
 export const KRITERIA_DONASI: FinancialKriteria[] = ["Donasi"];
-export const KRITERIA_RAMADHAN: FinancialKriteria[] = ["Ramadhan"];
+export const KRITERIA_RAMADHAN: FinancialKriteria[] = ["Ramadhan", "Setor UM Ramadhan", "Terima UM Ramadhan"];
 export const KRITERIA_BUKA_PUASA: FinancialKriteria[] = ["Infaq Buka Puasa"];
 
 /** Buka Puasa itu khusus: selain Kriteria "Infaq Buka Puasa", transaksi APAPUN

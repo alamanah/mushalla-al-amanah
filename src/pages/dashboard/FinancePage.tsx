@@ -5,6 +5,7 @@ import { parseBriStatement, parseBsiStatement, splitDuplicates } from "../../lib
 import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
 import { isBukaPuasa, KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
 import { datetimeLocalToWitaIso, formatWita, nowWitaDatetimeLocal, toWitaDatetimeLocal } from "../../lib/waktu";
+import { buildJurnalRows, JurnalRowInsert } from "../../lib/tabelKeuangan";
 import LaporanKeuanganTab from "./LaporanKeuanganTab";
 import {
   DraftTransaction,
@@ -276,26 +277,44 @@ export default function FinancePage() {
   const submitDrafts = async () => {
     if (!uploadJenis || drafts.length === 0) return;
     setSubmitting(true);
-    const rows = drafts.map((d) => ({
-      tanggal: datetimeLocalToWitaIso(d.tanggal),
-      periode: draftPeriode,
-      uraian: d.uraian,
-      kriteria: d.kriteria,
-      debet: d.debet,
-      kredit: d.kredit,
-      keterangan: d.keterangan,
-      jenis: d.jenis,
-      created_by: user?.id ?? null,
-    }));
-    const { error } = await supabase.from("financial_transactions").insert(rows);
-    setSubmitting(false);
-    if (error) {
-      setParseError("Gagal menyimpan ke database: " + error.message);
-      return;
+
+    // Setiap baris draft dipecah jadi 1-2 baris jurnal (jurnal ganda) sesuai
+    // aturan a-g, lalu dikelompokkan per tabel tujuan supaya tiap tabel cukup
+    // 1x panggilan insert (lihat src/lib/tabelKeuangan.ts).
+    const grouped = new Map<string, JurnalRowInsert[]>();
+    for (const d of drafts) {
+      const jurnalRows = buildJurnalRows(d, {
+        tanggalIso: datetimeLocalToWitaIso(d.tanggal),
+        periode: draftPeriode,
+        createdBy: user?.id ?? null,
+      });
+      for (const { table, row } of jurnalRows) {
+        const list = grouped.get(table) ?? [];
+        list.push(row);
+        grouped.set(table, list);
+      }
     }
+
+    for (const [table, rows] of grouped) {
+      const { error } = await supabase.from(table).insert(rows);
+      if (error) {
+        setSubmitting(false);
+        setParseError(`Gagal menyimpan ke tabel "${table}": ${error.message}`);
+        return;
+      }
+    }
+
+    setSubmitting(false);
     setDrafts([]);
     setUploadJenis(null);
     setSkippedInfo(null);
+    // Catatan: hasil upload sekarang tersimpan di 7 tabel baru (tabel_bank,
+    // tabel_up_tunai, dst -- lihat migration_011), BUKAN lagi di
+    // financial_transactions. Tab dashboard di bawah masih baca
+    // financial_transactions (Tahap 2 menyusul), jadi `load()` di sini
+    // sengaja dibiarkan untuk transaksi yang datang dari sumber lain
+    // (input manual/edit) -- baris hasil upload CSV baru terlihat di
+    // dashboard setelah Tahap 2 selesai.
     load();
   };
 

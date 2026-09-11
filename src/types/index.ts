@@ -72,7 +72,11 @@ export interface AboutContent {
   updated_at: string;
 }
 
-export type FinancialJenis = "BRI" | "BSI" | "UP Tunai" | "Infaq Buka Puasa";
+// "Donasi" | "Ramadhan" | "Qurban" dipakai internal untuk baris jurnal di
+// tabel_donasi/tabel_ramadhan/tabel_qurban (lihat src/lib/tabelKeuangan.ts) --
+// sengaja TIDAK dimasukkan ke FINANCIAL_JENIS supaya tidak muncul di dropdown
+// input manual/upload yang sudah ada.
+export type FinancialJenis = "BRI" | "BSI" | "UP Tunai" | "Infaq Buka Puasa" | "Donasi" | "Ramadhan" | "Qurban";
 
 export const FINANCIAL_JENIS: FinancialJenis[] = ["BRI", "BSI", "UP Tunai", "Infaq Buka Puasa"];
 
@@ -88,12 +92,15 @@ export type FinancialKriteria =
   | "Kegiatan Sarpras"
   | "Lainnya"
   | "Ramadhan"
-  | "Dana Pengqurban"
   | "Qurban"
   | "Donasi"
   | "Infaq Buka Puasa"
   | "Setor UP Tunai"
-  | "Terima UP Tunai";
+  | "Terima UP Tunai"
+  | "Setor UM Ramadhan"
+  | "Terima UM Ramadhan"
+  | "Setor UM Qurban"
+  | "Terima UM Qurban";
 
 export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
   "Saldo Awal",
@@ -107,12 +114,15 @@ export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
   "Kegiatan Sarpras",
   "Lainnya",
   "Ramadhan",
-  "Dana Pengqurban",
   "Qurban",
   "Donasi",
   "Infaq Buka Puasa",
   "Setor UP Tunai",
   "Terima UP Tunai",
+  "Setor UM Ramadhan",
+  "Terima UM Ramadhan",
+  "Setor UM Qurban",
+  "Terima UM Qurban",
 ];
 
 export interface FinancialTransaction {

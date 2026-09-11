@@ -28,8 +28,10 @@ do $$ begin
   create type financial_kriteria as enum (
     'Saldo Awal', 'Transfer', 'Setor Tunai Jumat', 'QRIS', 'Admin', 'Gaji',
     'Kegiatan Dakwah', 'Kegiatan Sosial', 'Kegiatan Sarpras', 'Lainnya',
-    'Ramadhan', 'Dana Pengqurban', 'Qurban', 'Donasi', 'Infaq Buka Puasa',
-    'Setor UP Tunai', 'Terima UP Tunai'
+    'Ramadhan', 'Qurban', 'Donasi', 'Infaq Buka Puasa',
+    'Setor UP Tunai', 'Terima UP Tunai',
+    'Setor UM Ramadhan', 'Terima UM Ramadhan',
+    'Setor UM Qurban', 'Terima UM Qurban'
   );
 exception when duplicate_object then null; end $$;
 
