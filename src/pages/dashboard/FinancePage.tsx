@@ -110,11 +110,19 @@ export default function FinancePage() {
     load();
   }, []);
 
-  // Kas UP Tunai: baris Kriteria "Setor UP Tunai" sekarang selalu dibuat
-  // sudah benar di Debet sejak awal (lihat fitur jurnal kontra saat upload
-  // rekening koran & input manual), jadi ditampilkan apa adanya tanpa
-  // ditukar lagi -- tidak ada lagi normalisasi Debet/Kredit di sini.
+  // Kas UP Tunai: baris Kriteria "Setor UP Tunai" seharusnya SELALU Debet
+  // (uang masuk ke kas tunai, lihat fitur jurnal kontra saat upload rekening
+  // koran & input manual). Kalau ada baris kriteria yang sama tapi kepencet
+  // di Kredit, itu dianggap data keliru/duplikat -- tidak ikut dihitung /
+  // ditampilkan khusus di tab UP Tunai.
   const byJenis = useMemo(() => computeRunningSaldoByJenis(items), [items]);
+  const upTunaiRows = useMemo(
+    () =>
+      computeRunningSaldo(
+        items.filter((t) => t.jenis === "UP Tunai" && !(t.kriteria === "Setor UP Tunai" && t.kredit > 0))
+      ),
+    [items]
+  );
   const combinedRows = useMemo(() => computeRunningSaldo(items), [items]);
   const qurbanRows = useMemo(
     () => computeRunningSaldo(items.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
@@ -145,6 +153,8 @@ export default function FinancePage() {
     ? bukaPuasaRows
     : isLaporan
     ? []
+    : activeTab === "UP Tunai"
+    ? upTunaiRows
     : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
 
