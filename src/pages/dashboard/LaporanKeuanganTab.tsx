@@ -6,7 +6,15 @@ function formatRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 }
 
-export default function LaporanKeuanganTab({ items }: { items: FinancialTransaction[] }) {
+interface Props {
+  items: FinancialTransaction[];
+  /** false = tampilan ringkas untuk halaman publik: tanpa pilih periode
+   * (otomatis pakai periode terbaru) dan tanpa tombol Unduh PDF. Default
+   * true (dipakai di Dashboard > Keuangan > tab Laporan). */
+  showControls?: boolean;
+}
+
+export default function LaporanKeuanganTab({ items, showControls = true }: Props) {
   const periodeOptions = useMemo(() => listPeriodeOptions(items), [items]);
   const [periode, setPeriode] = useState<string>(periodeOptions[0] ?? "");
 
@@ -32,23 +40,25 @@ export default function LaporanKeuanganTab({ items }: { items: FinancialTransact
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-500">Pilih Periode:</label>
-          <select className="input max-w-[200px]" value={periode} onChange={(e) => setPeriode(e.target.value)}>
-            {periodeOptions.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+      {showControls && (
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-500">Pilih Periode:</label>
+            <select className="input max-w-[200px]" value={periode} onChange={(e) => setPeriode(e.target.value)}>
+              {periodeOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          {laporan && (
+            <button className="btn-secondary text-sm" onClick={handleDownloadPdf}>
+              🖨️ Unduh PDF
+            </button>
+          )}
         </div>
-        {laporan && (
-          <button className="btn-secondary text-sm" onClick={handleDownloadPdf}>
-            🖨️ Unduh PDF
-          </button>
-        )}
-      </div>
+      )}
 
       {laporan && (
         <div className="print-area card !p-0 overflow-hidden border border-primary-100 shadow-sm">

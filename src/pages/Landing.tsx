@@ -15,11 +15,7 @@ export default function Landing() {
           <img src={`${import.meta.env.BASE_URL}mosque.svg`} className="h-16 w-16 mx-auto mb-4" alt="" />
           <h1 className="font-serif text-3xl sm:text-4xl font-bold mb-3">Mushalla Al Amanah</h1>
           <p className="text-white/80">GKN I Denpasar</p>
-          <p className="max-w-xl mx-auto mt-4 text-white/80 text-sm sm:text-base">
-            Menjadi rumah ibadah yang menghidupkan syiar Islam bagi warga GKN I Denpasar dan
-            sekitarnya — lewat jadwal shalat yang selalu terkini, kajian rutin yang menyejukkan
-            hati, keuangan yang transparan, dan bacaan Islami yang mencerahkan.
-          </p>
+          <p className="max-w-xl mx-auto mt-4 text-white/80 text-sm sm:text-base">Bersama Menuju Allah</p>
           {!user && (
             <div className="mt-6 flex justify-center gap-3">
               <Link to="/register" className="btn-gold">
