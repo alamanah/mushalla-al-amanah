@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 
 import DashboardHome from "./pages/dashboard/DashboardHome";
 import UserVerification from "./pages/dashboard/UserVerification";
+import Referensi from "./pages/dashboard/Referensi";
 import ArticleModeration from "./pages/dashboard/ArticleModeration";
 import FinancePage from "./pages/dashboard/FinancePage";
 import InventoryPage from "./pages/dashboard/InventoryPage";
@@ -64,6 +65,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <ArticleModeration />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="referensi"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <Referensi />
                 </ProtectedRoute>
               }
             />

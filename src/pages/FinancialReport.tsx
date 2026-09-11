@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { computeRunningSaldoByJenis } from "../lib/saldo";
+import { computeRunningSaldo, computeRunningSaldoByJenis } from "../lib/saldo";
 import { FINANCIAL_JENIS, FinancialJenis, FinancialTransaction } from "../types";
 
 function formatRupiah(n: number) {
@@ -18,10 +18,13 @@ function formatTanggal(t: string | null) {
   });
 }
 
+type ActiveTab = FinancialJenis | "Rekapitulasi";
+const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi"];
+
 export default function FinancialReport() {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeJenis, setActiveJenis] = useState<FinancialJenis>("BRI");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("BRI");
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   useEffect(() => {
@@ -35,7 +38,9 @@ export default function FinancialReport() {
   }, []);
 
   const byJenis = useMemo(() => computeRunningSaldoByJenis(transactions), [transactions]);
-  const rowsAll = byJenis[activeJenis] ?? [];
+  const combinedRows = useMemo(() => computeRunningSaldo(transactions), [transactions]);
+  const isRekap = activeTab === "Rekapitulasi";
+  const rowsAll = isRekap ? combinedRows : byJenis[activeTab] ?? [];
   const saldoTerkini = rowsAll.length > 0 ? rowsAll[rowsAll.length - 1].saldo : 0;
 
   const rowsBulanIni = useMemo(
@@ -67,12 +72,12 @@ export default function FinancialReport() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex gap-2">
-          {FINANCIAL_JENIS.map((j) => (
+          {TABS.map((j) => (
             <button
               key={j}
-              onClick={() => setActiveJenis(j)}
+              onClick={() => setActiveTab(j)}
               className={`badge border ${
-                activeJenis === j
+                activeTab === j
                   ? "bg-primary-700 text-white border-primary-700"
                   : "bg-white text-gray-500 border-gray-200"
               }`}
@@ -86,15 +91,15 @@ export default function FinancialReport() {
 
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <div className="card">
-          <p className="text-xs text-gray-500">Pemasukan Bulan Ini ({activeJenis})</p>
+          <p className="text-xs text-gray-500">Pemasukan Bulan Ini ({activeTab})</p>
           <p className="text-xl font-bold text-primary-700">{formatRupiah(totals.debet)}</p>
         </div>
         <div className="card">
-          <p className="text-xs text-gray-500">Pengeluaran Bulan Ini ({activeJenis})</p>
+          <p className="text-xs text-gray-500">Pengeluaran Bulan Ini ({activeTab})</p>
           <p className="text-xl font-bold text-red-600">{formatRupiah(totals.kredit)}</p>
         </div>
         <div className="card">
-          <p className="text-xs text-gray-500">Saldo {activeJenis} Saat Ini</p>
+          <p className="text-xs text-gray-500">{isRekap ? "Saldo Gabungan Saat Ini" : `Saldo ${activeTab} Saat Ini`}</p>
           <p className="text-xl font-bold text-gold-600">{formatRupiah(saldoTerkini)}</p>
         </div>
       </div>
@@ -102,13 +107,14 @@ export default function FinancialReport() {
       <div className="card overflow-x-auto">
         {loading && <p className="text-sm text-gray-400">Memuat data...</p>}
         {!loading && rowsBulanIni.length === 0 && (
-          <p className="text-sm text-gray-400">Tidak ada transaksi {activeJenis} pada bulan ini.</p>
+          <p className="text-sm text-gray-400">Tidak ada transaksi {activeTab} pada bulan ini.</p>
         )}
         {rowsBulanIni.length > 0 && (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 pr-4">Tanggal</th>
+                {isRekap && <th className="py-2 pr-4">Jenis</th>}
                 <th className="py-2 pr-4">Kriteria</th>
                 <th className="py-2 pr-4">Keterangan</th>
                 <th className="py-2 pr-4 text-right">Pemasukan</th>
@@ -120,6 +126,11 @@ export default function FinancialReport() {
               {rowsBulanIni.map((t) => (
                 <tr key={t.id} className="border-b last:border-0">
                   <td className="py-2 pr-4 whitespace-nowrap">{formatTanggal(t.tanggal)}</td>
+                  {isRekap && (
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
+                    </td>
+                  )}
                   <td className="py-2 pr-4">{t.kriteria}</td>
                   <td className="py-2 pr-4 text-gray-500">{t.keterangan}</td>
                   <td className="py-2 pr-4 text-right text-primary-700">

@@ -37,7 +37,13 @@ dsb), jalankan 2 file migrasi ini **secara berurutan, di dua query terpisah**:
 (Harus 2 langkah terpisah karena PostgreSQL tidak mengizinkan nilai enum baru — role
 "humas" — langsung dipakai di transaksi yang sama saat ia dibuat.)
 
-Migrasi ini akan:
+Kalau kamu sudah pernah menjalankan migrasi di atas sebelumnya dan sekarang cuma perlu
+menambahkan halaman **Referensi** (daftar Ustadz), jalankan juga:
+
+3. [`migration_003_referensi.sql`](./migration_003_referensi.sql) — bikin tabel `ustadz`
+   khusus untuk halaman Dashboard → Referensi (hanya admin yang bisa akses).
+
+Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,
   Kredit, Keterangan, Jenis (BRI/BSI/UP Tunai)** — saldo dihitung otomatis oleh aplikasi,

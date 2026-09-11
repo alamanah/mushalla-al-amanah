@@ -8,6 +8,7 @@ export default function DashboardLayout() {
   const items = [
     { to: "/dashboard", label: "Ringkasan", end: true, show: true },
     { to: "/dashboard/verifikasi-user", label: "Verifikasi User", show: isAdmin },
+    { to: "/dashboard/referensi", label: "Referensi", show: isAdmin },
     { to: "/dashboard/artikel", label: "Moderasi Artikel", show: isAdmin },
     { to: "/dashboard/keuangan", label: "Keuangan", show: isAdmin || hasRole("bendahara") },
     { to: "/dashboard/inventaris", label: "Inventaris", show: isAdmin || hasRole("inventaris") },

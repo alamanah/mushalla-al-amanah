@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { parseBriStatement, parseBsiStatement } from "../../lib/bankStatement";
-import { computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
+import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
 import {
   DraftTransaction,
   FINANCIAL_JENIS,
@@ -27,6 +27,9 @@ function formatTanggal(t: string | null) {
   });
 }
 
+type ActiveTab = FinancialJenis | "Rekapitulasi";
+const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi"];
+
 const emptyManualForm = {
   jenis: "UP Tunai" as FinancialJenis,
   tanggal: new Date().toISOString().slice(0, 16),
@@ -42,7 +45,7 @@ export default function FinancePage() {
   const canEdit = hasRole("bendahara"); // admin read-only, sesuai kebijakan moderasi
   const [items, setItems] = useState<FinancialTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeJenis, setActiveJenis] = useState<FinancialJenis>("BRI");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("BRI");
 
   // -- upload & preview state --
   const [uploadJenis, setUploadJenis] = useState<"BRI" | "BSI" | null>(null);
@@ -77,7 +80,9 @@ export default function FinancePage() {
   }, []);
 
   const byJenis = useMemo(() => computeRunningSaldoByJenis(items), [items]);
-  const currentRows: TransactionWithSaldo[] = byJenis[activeJenis] ?? [];
+  const combinedRows = useMemo(() => computeRunningSaldo(items), [items]);
+  const isRekap = activeTab === "Rekapitulasi";
+  const currentRows: TransactionWithSaldo[] = isRekap ? combinedRows : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
 
   const handlePickFile = (jenis: "BRI" | "BSI") => {
@@ -439,14 +444,14 @@ export default function FinancePage() {
         </form>
       )}
 
-      {/* ---- Tabel transaksi per Jenis rekening ---- */}
+      {/* ---- Tabel transaksi per Jenis rekening / Rekapitulasi gabungan ---- */}
       <div className="flex gap-2 mb-3">
-        {FINANCIAL_JENIS.map((j) => (
+        {TABS.map((j) => (
           <button
             key={j}
-            onClick={() => setActiveJenis(j)}
+            onClick={() => setActiveTab(j)}
             className={`badge border ${
-              activeJenis === j ? "bg-primary-700 text-white border-primary-700" : "bg-white text-gray-500 border-gray-200"
+              activeTab === j ? "bg-primary-700 text-white border-primary-700" : "bg-white text-gray-500 border-gray-200"
             }`}
           >
             {j}
@@ -455,20 +460,23 @@ export default function FinancePage() {
       </div>
 
       <div className="card mb-3 flex items-center justify-between">
-        <span className="text-sm text-gray-500">Saldo {activeJenis} saat ini</span>
+        <span className="text-sm text-gray-500">
+          {isRekap ? "Saldo Gabungan (BRI + BSI + UP Tunai) saat ini" : `Saldo ${activeTab} saat ini`}
+        </span>
         <span className="text-xl font-bold text-primary-800">{formatRupiah(saldoTerkini)}</span>
       </div>
 
       <div className="card overflow-x-auto">
         {loading && <p className="text-sm text-gray-400">Memuat data...</p>}
         {!loading && currentRows.length === 0 && (
-          <p className="text-sm text-gray-400">Belum ada transaksi untuk {activeJenis}.</p>
+          <p className="text-sm text-gray-400">Belum ada transaksi untuk {activeTab}.</p>
         )}
         {currentRows.length > 0 && (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 pr-3">Tanggal</th>
+                {isRekap && <th className="py-2 pr-3">Jenis</th>}
                 <th className="py-2 pr-3">Periode</th>
                 <th className="py-2 pr-3">Kriteria</th>
                 <th className="py-2 pr-3">Keterangan</th>
@@ -482,6 +490,11 @@ export default function FinancePage() {
               {currentRows.map((t) => (
                 <tr key={t.id} className="border-b last:border-0">
                   <td className="py-2 pr-3 whitespace-nowrap">{formatTanggal(t.tanggal)}</td>
+                  {isRekap && (
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
+                    </td>
+                  )}
                   <td className="py-2 pr-3 whitespace-nowrap text-gray-500">{t.periode}</td>
                   <td className="py-2 pr-3">
                     {editingId === t.id ? (

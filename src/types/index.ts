@@ -4,7 +4,7 @@ export type AppRole = "admin" | "bendahara" | "inventaris" | "humas";
 export const ROLE_LABEL: Record<AppRole, string> = {
   admin: "Admin",
   bendahara: "Bendahara",
-  inventaris: "Pengelola Inventaris",
+  inventaris: "Operator Inventaris",
   humas: "Humas",
 };
 
@@ -139,6 +139,15 @@ export interface InventoryItem {
   catatan: string | null;
   created_by: string | null;
   updated_at: string;
+}
+
+export interface Ustadz {
+  id: string;
+  nama: string;
+  kontak: string | null;
+  bidang: string | null;
+  keterangan: string | null;
+  created_at: string;
 }
 
 export type ArticleStatus = "draft" | "pending" | "published" | "rejected";

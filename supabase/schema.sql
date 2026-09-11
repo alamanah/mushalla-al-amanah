@@ -138,6 +138,18 @@ create table if not exists public.inventory_items (
 );
 
 -- ---------------------------------------------------------------------
+-- 4b. REFERENSI (daftar ustadz -- untuk rujukan internal pengurus)
+-- ---------------------------------------------------------------------
+create table if not exists public.ustadz (
+  id uuid primary key default gen_random_uuid(),
+  nama text not null,
+  kontak text,
+  bidang text,
+  keterangan text,
+  created_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------
 -- 5. ARTIKEL / BACAAN
 -- ---------------------------------------------------------------------
 create table if not exists public.articles (
@@ -219,6 +231,7 @@ alter table public.about_content enable row level security;
 alter table public.financial_transactions enable row level security;
 alter table public.inventory_items enable row level security;
 alter table public.articles enable row level security;
+alter table public.ustadz enable row level security;
 
 -- profiles: user lihat/ubah profil sendiri; admin lihat/ubah semua
 drop policy if exists "profiles_select_own_or_admin" on public.profiles;
@@ -333,6 +346,12 @@ drop policy if exists "inventory_write_inventaris" on public.inventory_items;
 create policy "inventory_write_inventaris" on public.inventory_items for all
   using (public.has_role(auth.uid(), 'inventaris'))
   with check (public.has_role(auth.uid(), 'inventaris'));
+
+-- referensi ustadz: khusus halaman dashboard admin (bukan konsumsi publik)
+drop policy if exists "ustadz_admin_all" on public.ustadz;
+create policy "ustadz_admin_all" on public.ustadz for all
+  using (public.is_admin(auth.uid()))
+  with check (public.is_admin(auth.uid()));
 
 -- artikel: publik hanya lihat yang published; penulis lihat/kelola miliknya; admin kelola semua
 drop policy if exists "articles_public_read_published" on public.articles;
