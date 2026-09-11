@@ -87,7 +87,9 @@ export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): Ju
   // Puasa -- dipicu spesifik oleh kombinasi Jenis "UP Tunai" + Kriteria
   // "Infaq Buka Puasa" (beda dari Jenis "UP Tunai" biasa yang cuma 1 baris).
   // Menghasilkan 3 baris:
-  //  1. tabel_up_tunai: Kredit sejumlah talangan (uang keluar dari kas tunai)
+  //  1. tabel_up_tunai: Kredit sejumlah talangan (uang keluar dari kas tunai),
+  //     Kriteria diganti jadi "Kegiatan Dakwah" (bukan "Infaq Buka Puasa")
+  //     supaya baris ini ikut tertarik/terhitung di Laporan Keuangan.
   //  2. tabel_infaq_buka_puasa: Debit sejumlah sama -- "Kekurangan buka puasa"
   //  3. tabel_infaq_buka_puasa: Kredit = saldo akhir Buka Puasa SETELAH baris
   //     ke-2 (infaq terkumpul + talangan) -- "Pelaksanaan buka puasa", jadi
@@ -99,7 +101,7 @@ export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): Ju
     return [
       {
         table: TABEL_UP_TUNAI,
-        row: { ...base, kriteria: draft.kriteria, debet: 0, kredit: talangan, jenis: "UP Tunai" },
+        row: { ...base, kriteria: "Kegiatan Dakwah", debet: 0, kredit: talangan, jenis: "UP Tunai" },
       },
       {
         table: TABEL_INFAQ_BUKA_PUASA,

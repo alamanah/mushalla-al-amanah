@@ -700,14 +700,6 @@ export default function FinancePage() {
                   </option>
                 ))}
               </select>
-              {manualForm.jenis === "UP Tunai" && manualForm.kriteria === "Infaq Buka Puasa" && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Ini talangan dari kas UP Tunai untuk menutup kekurangan dana Buka Puasa -- isi <b>Kredit</b> sejumlah
-                  talangannya. Otomatis tercatat: UP Tunai Kredit, Buka Puasa Debit "Kekurangan buka puasa", lalu
-                  seluruh saldo Buka Puasa (infaq + talangan) langsung dicatat Kredit "Pelaksanaan buka puasa" (saldo
-                  balik ke 0).
-                </p>
-              )}
             </div>
           )}
           <div>

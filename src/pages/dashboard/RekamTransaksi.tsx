@@ -236,12 +236,6 @@ export default function RekamTransaksi() {
                 </option>
               ))}
             </select>
-            {form.jenis === "UP Tunai" && form.kriteria === "Infaq Buka Puasa" && (
-              <p className="text-xs text-gray-500 mt-1">
-                Talangan dari kas UP Tunai untuk menutup kekurangan dana Buka Puasa -- isi <b>Kredit</b> sejumlah
-                talangannya. Saldo Buka Puasa otomatis dicatat habis terpakai ("Pelaksanaan buka puasa").
-              </p>
-            )}
           </div>
         )}
 
