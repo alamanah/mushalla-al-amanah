@@ -14,7 +14,8 @@ const emptyForm = {
 };
 
 export default function InventoryPage() {
-  const { user } = useAuth();
+  const { user, isAdmin, hasRole } = useAuth();
+  const canEdit = hasRole("inventaris"); // admin read-only, sesuai kebijakan moderasi
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -80,8 +81,14 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-bold text-primary-900 mb-6">Kelola Inventaris</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-serif text-2xl font-bold text-primary-900">Inventaris</h1>
+        {!canEdit && (
+          <span className="badge bg-gray-100 text-gray-500">{isAdmin ? "Mode lihat saja (admin)" : "Mode lihat saja"}</span>
+        )}
+      </div>
 
+      {canEdit && (
       <form onSubmit={handleSubmit} className="card grid sm:grid-cols-3 gap-3 mb-6">
         <div>
           <label className="label">Nama Barang</label>
@@ -142,6 +149,7 @@ export default function InventoryPage() {
           )}
         </div>
       </form>
+      )}
 
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
@@ -152,7 +160,7 @@ export default function InventoryPage() {
               <th className="py-2 pr-4">Jumlah</th>
               <th className="py-2 pr-4">Kondisi</th>
               <th className="py-2 pr-4">Lokasi</th>
-              <th className="py-2 pr-4"></th>
+              {canEdit && <th className="py-2 pr-4"></th>}
             </tr>
           </thead>
           <tbody>
@@ -163,14 +171,16 @@ export default function InventoryPage() {
                 <td className="py-2 pr-4">{it.jumlah}</td>
                 <td className="py-2 pr-4">{it.kondisi}</td>
                 <td className="py-2 pr-4">{it.lokasi}</td>
-                <td className="py-2 pr-4 flex gap-2">
-                  <button className="text-primary-700 text-xs" onClick={() => edit(it)}>
-                    Ubah
-                  </button>
-                  <button className="text-red-500 text-xs" onClick={() => remove(it.id)}>
-                    Hapus
-                  </button>
-                </td>
+                {canEdit && (
+                  <td className="py-2 pr-4 flex gap-2">
+                    <button className="text-primary-700 text-xs" onClick={() => edit(it)}>
+                      Ubah
+                    </button>
+                    <button className="text-red-500 text-xs" onClick={() => remove(it.id)}>
+                      Hapus
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

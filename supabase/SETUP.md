@@ -24,6 +24,36 @@ tinggal jalankan ulang file ini.
 
 ---
 
+## 1b. Migrasi (untuk database yang sudah pernah setup sebelumnya)
+
+Kalau kamu sudah pernah menjalankan `schema.sql` versi sebelumnya (sudah ada data user,
+dsb), jalankan 2 file migrasi ini **secara berurutan, di dua query terpisah**:
+
+1. Jalankan seluruh isi [`migration_002a_enum.sql`](./migration_002a_enum.sql) dulu, klik
+   **Run**, tunggu sampai sukses.
+2. Baru buka **New query** lagi, jalankan seluruh isi
+   [`migration_002b_finance_roles.sql`](./migration_002b_finance_roles.sql).
+
+(Harus 2 langkah terpisah karena PostgreSQL tidak mengizinkan nilai enum baru — role
+"humas" — langsung dipakai di transaksi yang sama saat ia dibuat.)
+
+Migrasi ini akan:
+- Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
+- Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,
+  Kredit, Keterangan, Jenis (BRI/BSI/UP Tunai)** — saldo dihitung otomatis oleh aplikasi,
+  tidak disimpan di database. Data transaksi lama otomatis dipetakan ke kolom baru
+  (kategori bebas → Kriteria terdekat, jumlah+masuk/keluar → Debet/Kredit). Silakan cek
+  dan koreksi manual lewat Dashboard → Keuangan setelah migrasi bila ada yang meleset.
+- Admin jadi **hanya bisa melihat** (read-only) di menu Keuangan & Inventaris — input/
+  edit/hapus data hanya bisa oleh role **bendahara** (Keuangan) dan **pengelola
+  inventaris** (Inventaris).
+- Admin bisa menghapus profil user dari menu Verifikasi User (catatan: ini tidak
+  menghapus akun login Supabase Auth-nya, hanya menghapus data profil & role di
+  aplikasi — untuk hapus akun login sepenuhnya, lakukan manual lewat Dashboard Supabase
+  → Authentication → Users).
+
+---
+
 ## 2. Konfigurasi Authentication (Email)
 
 Buka menu **Authentication → Providers**:
@@ -60,15 +90,27 @@ Buka menu **Authentication → Providers**:
 
    ```sql
    -- Jadikan alamanahgknidenpasar@gmail.com sebagai admin pertama
-   with target as (
-     select id from public.profiles where email = 'alamanahgknidenpasar@gmail.com'
-   )
-   update public.profiles set status = 'approved' where id in (select id from target);
+   update public.profiles
+   set status = 'approved'
+   where email = 'alamanahgknidenpasar@gmail.com';
 
    insert into public.user_roles (user_id, role)
-   select id, 'admin' from target
+   select id, 'admin'
+   from public.profiles
+   where email = 'alamanahgknidenpasar@gmail.com'
    on conflict (user_id, role) do nothing;
    ```
+
+   Cek hasilnya dengan:
+
+   ```sql
+   select p.email, p.status, r.role
+   from public.profiles p
+   left join public.user_roles r on r.user_id = p.id
+   where p.email = 'alamanahgknidenpasar@gmail.com';
+   ```
+
+   Harus muncul baris dengan `status = approved` dan `role = admin`.
 
 5. Login ulang (atau refresh) di aplikasi — menu **Dashboard** akan muncul di navbar,
    dan admin bisa mengakses **Verifikasi User**, **Moderasi Artikel**, dan **Pengaturan Konten**.

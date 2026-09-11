@@ -45,17 +45,23 @@ export default function DashboardHome() {
         )}
         {(isAdmin || hasRole("bendahara")) && (
           <Link to="/dashboard/keuangan" className="card hover:shadow-md">
-            <p className="font-medium text-gray-800">Kelola Keuangan</p>
-            <p className="text-xs text-gray-400 mt-1">Catat pemasukan &amp; pengeluaran mushalla</p>
+            <p className="font-medium text-gray-800">Keuangan</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {isAdmin && !hasRole("bendahara")
+                ? "Lihat saja — input transaksi dilakukan bendahara"
+                : "Upload rekening koran BRI/BSI, rekam saldo awal, catat transaksi"}
+            </p>
           </Link>
         )}
         {(isAdmin || hasRole("inventaris")) && (
           <Link to="/dashboard/inventaris" className="card hover:shadow-md">
-            <p className="font-medium text-gray-800">Kelola Inventaris</p>
-            <p className="text-xs text-gray-400 mt-1">Catat dan pantau aset mushalla</p>
+            <p className="font-medium text-gray-800">Inventaris</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {isAdmin && !hasRole("inventaris") ? "Lihat saja — dikelola oleh pengelola inventaris" : "Catat dan pantau aset mushalla"}
+            </p>
           </Link>
         )}
-        {isAdmin && (
+        {(isAdmin || hasRole("humas")) && (
           <Link to="/dashboard/pengaturan" className="card hover:shadow-md">
             <p className="font-medium text-gray-800">Pengaturan Konten</p>
             <p className="text-xs text-gray-400 mt-1">

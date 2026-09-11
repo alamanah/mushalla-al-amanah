@@ -13,15 +13,23 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type app_role as enum ('admin', 'bendahara', 'inventaris');
-exception when duplicate_object then null; end $$;
-
-do $$ begin
-  create type transaction_type as enum ('masuk', 'keluar');
+  create type app_role as enum ('admin', 'bendahara', 'inventaris', 'humas');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type article_status as enum ('draft', 'pending', 'published', 'rejected');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type financial_jenis as enum ('BRI', 'BSI', 'UP Tunai');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type financial_kriteria as enum (
+    'Saldo Awal', 'Transfer', 'Setor Tunai Jumat', 'QRIS', 'Admin', 'Gaji',
+    'Kegiatan Dakwah', 'Kegiatan Sosial', 'Kegiatan Sarpras', 'Lainnya',
+    'Ramadhan', 'Dana Pengqurban', 'Qurban', 'Donasi'
+  );
 exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------
@@ -100,13 +108,18 @@ create table if not exists public.about_content (
 -- ---------------------------------------------------------------------
 -- 4. KEUANGAN & INVENTARIS
 -- ---------------------------------------------------------------------
+-- Saldo TIDAK disimpan di sini -- dihitung dinamis di aplikasi per Jenis
+-- rekening, diurutkan berdasarkan tanggal: saldo_n = (saldo_(n-1) + debet_n) - kredit_n
 create table if not exists public.financial_transactions (
   id uuid primary key default gen_random_uuid(),
-  tanggal date not null,
-  jenis transaction_type not null,
-  kategori text not null,
-  deskripsi text,
-  jumlah numeric(14, 2) not null check (jumlah >= 0),
+  tanggal timestamptz, -- null hanya untuk baris "Saldo Awal" tanpa tanggal spesifik
+  periode text not null, -- mis. "Pekan 1", "Pekan 2", dst -- dipilih manual sebelum upload
+  uraian text, -- deskripsi mentah asli dari rekening koran (arsip)
+  kriteria financial_kriteria not null,
+  debet numeric(14, 2) not null default 0, -- uang MASUK (perspektif kas mushalla)
+  kredit numeric(14, 2) not null default 0, -- uang KELUAR (perspektif kas mushalla)
+  keterangan text, -- keterangan yang sudah disunting bendahara
+  jenis financial_jenis not null, -- BRI / BSI / UP Tunai
   created_by uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -133,7 +146,7 @@ create table if not exists public.articles (
   slug text not null unique,
   content text not null,
   cover_image_url text,
-  author_id uuid not null references public.profiles (id) on delete cascade,
+  author_id uuid references public.profiles (id) on delete set null,
   author_name text,
   status article_status not null default 'pending',
   rejection_note text,
@@ -220,6 +233,13 @@ drop policy if exists "profiles_update_admin" on public.profiles;
 create policy "profiles_update_admin" on public.profiles
   for update using (public.is_admin(auth.uid()));
 
+-- admin bisa menghapus user (profil aplikasi + role ikut terhapus lewat
+-- cascade). CATATAN: ini TIDAK menghapus akun login Supabase Auth-nya
+-- (perlu service role key / Dashboard > Authentication > Users untuk itu).
+drop policy if exists "profiles_delete_admin" on public.profiles;
+create policy "profiles_delete_admin" on public.profiles
+  for delete using (public.is_admin(auth.uid()));
+
 -- Cegah user biasa mengubah status verifikasinya sendiri (mis. lewat panggilan API
 -- langsung). Hanya admin yang boleh mengubah kolom status; user biasa yang
 -- meng-update profilnya (nama/HP) tidak akan bisa menyelundupkan perubahan status.
@@ -229,7 +249,11 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  if not public.is_admin(auth.uid()) then
+  -- auth.uid() kosong berarti query dijalankan langsung (SQL Editor, migrasi,
+  -- service role) di luar konteks user login lewat API -- konteks ini sudah
+  -- dipercaya (hanya admin/dev yang punya akses SQL Editor), jadi dibiarkan.
+  -- Yang diblokir hanya user biasa yang login lewat aplikasi tapi bukan admin.
+  if auth.uid() is not null and not public.is_admin(auth.uid()) then
     new.status := old.status;
   end if;
   return new;
@@ -250,53 +274,65 @@ drop policy if exists "user_roles_admin_write" on public.user_roles;
 create policy "user_roles_admin_write" on public.user_roles
   for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
--- konten publik: siapa saja boleh baca; hanya admin boleh tulis
+-- konten publik: siapa saja boleh baca; admin ATAU humas boleh tulis
 drop policy if exists "kajian_public_read" on public.kajian_schedule;
 create policy "kajian_public_read" on public.kajian_schedule for select using (true);
 drop policy if exists "kajian_admin_write" on public.kajian_schedule;
-create policy "kajian_admin_write" on public.kajian_schedule for all
-  using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "kajian_admin_humas_write" on public.kajian_schedule;
+create policy "kajian_admin_humas_write" on public.kajian_schedule for all
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'))
+  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'));
 
 drop policy if exists "prayer_override_public_read" on public.prayer_schedule_override;
 create policy "prayer_override_public_read" on public.prayer_schedule_override for select using (true);
 drop policy if exists "prayer_override_admin_write" on public.prayer_schedule_override;
-create policy "prayer_override_admin_write" on public.prayer_schedule_override for all
-  using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "prayer_override_admin_humas_write" on public.prayer_schedule_override;
+create policy "prayer_override_admin_humas_write" on public.prayer_schedule_override for all
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'))
+  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'));
 
 drop policy if exists "infaq_public_read" on public.infaq_info;
 create policy "infaq_public_read" on public.infaq_info for select using (true);
 drop policy if exists "infaq_admin_write" on public.infaq_info;
-create policy "infaq_admin_write" on public.infaq_info for all
-  using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "infaq_admin_humas_write" on public.infaq_info;
+create policy "infaq_admin_humas_write" on public.infaq_info for all
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'))
+  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'));
 
 drop policy if exists "social_public_read" on public.social_links;
 create policy "social_public_read" on public.social_links for select using (true);
 drop policy if exists "social_admin_write" on public.social_links;
-create policy "social_admin_write" on public.social_links for all
-  using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "social_admin_humas_write" on public.social_links;
+create policy "social_admin_humas_write" on public.social_links for all
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'))
+  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'));
 
 drop policy if exists "about_public_read" on public.about_content;
 create policy "about_public_read" on public.about_content for select using (true);
 drop policy if exists "about_admin_write" on public.about_content;
-create policy "about_admin_write" on public.about_content for all
-  using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "about_admin_humas_write" on public.about_content;
+create policy "about_admin_humas_write" on public.about_content for all
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'))
+  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'));
 
--- keuangan: transparan untuk publik (read), tulis oleh bendahara/admin
+-- keuangan: transparan untuk publik (read termasuk admin); tulis HANYA bendahara
 drop policy if exists "finance_public_read" on public.financial_transactions;
 create policy "finance_public_read" on public.financial_transactions for select using (true);
 drop policy if exists "finance_write_bendahara_admin" on public.financial_transactions;
-create policy "finance_write_bendahara_admin" on public.financial_transactions for all
-  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'bendahara'))
-  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'bendahara'));
+drop policy if exists "finance_write_bendahara" on public.financial_transactions;
+create policy "finance_write_bendahara" on public.financial_transactions for all
+  using (public.has_role(auth.uid(), 'bendahara'))
+  with check (public.has_role(auth.uid(), 'bendahara'));
 
--- inventaris: hanya inventaris/admin (bukan konsumsi publik)
+-- inventaris: dibaca admin & inventaris (bukan konsumsi publik); tulis HANYA inventaris
 drop policy if exists "inventory_read_inventaris_admin" on public.inventory_items;
 create policy "inventory_read_inventaris_admin" on public.inventory_items for select
   using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'inventaris'));
 drop policy if exists "inventory_write_inventaris_admin" on public.inventory_items;
-create policy "inventory_write_inventaris_admin" on public.inventory_items for all
-  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'inventaris'))
-  with check (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'inventaris'));
+drop policy if exists "inventory_write_inventaris" on public.inventory_items;
+create policy "inventory_write_inventaris" on public.inventory_items for all
+  using (public.has_role(auth.uid(), 'inventaris'))
+  with check (public.has_role(auth.uid(), 'inventaris'));
 
 -- artikel: publik hanya lihat yang published; penulis lihat/kelola miliknya; admin kelola semua
 drop policy if exists "articles_public_read_published" on public.articles;

@@ -1,7 +1,6 @@
 export type UserStatus = "pending" | "approved" | "rejected";
 export type AppRole = "admin" | "bendahara" | "inventaris" | "humas";
 
-
 export const ROLE_LABEL: Record<AppRole, string> = {
   admin: "Admin",
   bendahara: "Bendahara",

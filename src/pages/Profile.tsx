@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { ROLE_LABEL } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Menunggu verifikasi admin",
@@ -47,8 +48,8 @@ export default function Profile() {
             <span className="text-sm text-gray-500">Peran</span>
             <div className="flex gap-1">
               {roles.map((r) => (
-                <span key={r} className="badge bg-gold-500/20 text-gold-600 capitalize">
-                  {r}
+                <span key={r} className="badge bg-gold-500/20 text-gold-600">
+                  {ROLE_LABEL[r]}
                 </span>
               ))}
             </div>

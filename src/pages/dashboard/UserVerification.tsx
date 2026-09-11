@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { AppRole, Profile } from "../../types";
+import { useAuth } from "../../context/AuthContext";
+import { AppRole, Profile, ROLE_LABEL } from "../../types";
 
-const ALL_ROLES: AppRole[] = ["admin", "bendahara", "inventaris"];
+const ALL_ROLES: AppRole[] = ["admin", "bendahara", "inventaris", "humas"];
 
 export default function UserVerification() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<Profile[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, AppRole[]>>({});
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,25 @@ export default function UserVerification() {
       await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
     } else {
       await supabase.from("user_roles").insert({ user_id: userId, role });
+    }
+    load();
+  };
+
+  const deleteUser = async (u: Profile) => {
+    if (u.id === currentUser?.id) {
+      alert("Tidak bisa menghapus akun sendiri.");
+      return;
+    }
+    if (
+      !confirm(
+        `Hapus profil "${u.full_name || u.email}"? Ini menghapus datanya dari aplikasi (role, artikel jadi tanpa penulis), tapi akun login Supabase-nya tidak otomatis terhapus.`
+      )
+    )
+      return;
+    const { error } = await supabase.from("profiles").delete().eq("id", u.id);
+    if (error) {
+      alert("Gagal menghapus: " + error.message);
+      return;
     }
     load();
   };
@@ -92,9 +113,16 @@ export default function UserVerification() {
                       Tolak
                     </button>
                   )}
+                  <button
+                    className="text-red-500 text-xs hover:underline"
+                    onClick={() => deleteUser(u)}
+                    title="Hapus profil user ini"
+                  >
+                    Hapus
+                  </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t items-center">
                 <span className="text-xs text-gray-400 mr-1">Peran:</span>
                 {ALL_ROLES.map((r) => {
                   const active = roles.includes(r);
@@ -102,13 +130,13 @@ export default function UserVerification() {
                     <button
                       key={r}
                       onClick={() => toggleRole(u.id, r, active)}
-                      className={`badge capitalize border ${
+                      className={`badge border ${
                         active
                           ? "bg-gold-500/20 text-gold-700 border-gold-400"
                           : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      {r}
+                      {ROLE_LABEL[r]}
                     </button>
                   );
                 })}
