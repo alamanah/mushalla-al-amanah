@@ -82,6 +82,9 @@ export default function InventoryPage() {
   const [disposalSaving, setDisposalSaving] = useState(false);
   const [disposalError, setDisposalError] = useState<string | null>(null);
 
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const categoryMap = useMemo(() => {
     const m = new Map<string, InventoryCategory>();
     categories.forEach((c) => m.set(c.kode, c));
@@ -93,7 +96,16 @@ export default function InventoryPage() {
       .from("inventory_categories")
       .select("*")
       .order("sort_order")
-      .then(({ data }) => setCategories((data as InventoryCategory[]) ?? []));
+      .then(({ data, error }) => {
+        setCategoriesLoaded(true);
+        if (error) {
+          setLoadError(error.message);
+          setCategories([]);
+          return;
+        }
+        setLoadError(null);
+        setCategories((data as InventoryCategory[]) ?? []);
+      });
     supabase
       .from("inventory_items")
       .select("*")
@@ -302,6 +314,18 @@ export default function InventoryPage() {
           </div>
         </div>
       </div>
+
+      {categoriesLoaded && categories.length === 0 && (
+        <div className="card mb-6 border border-red-200 bg-red-50 text-sm text-red-700">
+          <p className="font-medium mb-1">Data kategori inventaris belum tersedia.</p>
+          <p>
+            Kemungkinan besar migrasi <code className="font-mono">migration_005_inventaris.sql</code> belum
+            dijalankan di Supabase SQL Editor (atau sempat gagal di tengah jalan). Jalankan file itu, lalu muat
+            ulang halaman ini.
+          </p>
+          {loadError && <p className="mt-2 font-mono text-xs">Error: {loadError}</p>}
+        </div>
+      )}
 
       {view === "aktif" && (
         <>
