@@ -53,7 +53,7 @@ export default function DashboardLayout() {
         </div>
       </aside>
       <div className="flex-1 min-w-0">
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto p-6">
           <Outlet />
         </div>
       </div>

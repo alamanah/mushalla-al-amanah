@@ -68,6 +68,9 @@ export default function FinancePage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // -- detail transaksi --
+  const [detailRow, setDetailRow] = useState<TransactionWithSaldo | null>(null);
+
   const load = () => {
     setLoading(true);
     supabase
@@ -525,15 +528,15 @@ export default function FinancePage() {
           <table className="w-full text-sm table-fixed">
             <colgroup>
               {canEdit && <col className="w-8" />}
-              <col className="w-28" />
-              {isRekap && <col className="w-16" />}
-              <col className="w-20" />
-              <col className="w-28" />
+              <col className="w-36" />
+              {isRekap && <col className="w-20" />}
+              <col className="w-24" />
+              <col className="w-32" />
               <col />
-              <col className="w-28" />
-              <col className="w-28" />
-              <col className="w-28" />
-              {canEdit && <col className="w-24" />}
+              <col className="w-32" />
+              <col className="w-32" />
+              <col className="w-32" />
+              <col className="w-24" />
             </colgroup>
             <thead>
               <tr className="text-left text-gray-500 border-b">
@@ -550,7 +553,7 @@ export default function FinancePage() {
                 <th className="py-2 pr-3 text-right">Debet</th>
                 <th className="py-2 pr-3 text-right">Kredit</th>
                 <th className="py-2 pr-3 text-right">Saldo</th>
-                {canEdit && <th className="py-2 pr-3"></th>}
+                <th className="py-2 pr-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -561,7 +564,9 @@ export default function FinancePage() {
                       <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
                     </td>
                   )}
-                  <td className="py-2 pr-3 whitespace-nowrap">{formatTanggal(t.tanggal)}</td>
+                  <td className="py-2 pr-3 truncate" title={formatTanggal(t.tanggal)}>
+                    {formatTanggal(t.tanggal)}
+                  </td>
                   {isRekap && (
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
@@ -603,35 +608,76 @@ export default function FinancePage() {
                     {t.kredit > 0 ? formatRupiah(t.kredit) : ""}
                   </td>
                   <td className="py-2 pr-3 text-right font-medium truncate">{formatRupiah(t.saldo)}</td>
-                  {canEdit && (
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      {editingId === t.id ? (
-                        <>
-                          <button className="text-primary-700 text-xs mr-2" onClick={() => saveEdit(t.id)}>
-                            Simpan
-                          </button>
-                          <button className="text-gray-400 text-xs" onClick={() => setEditingId(null)}>
-                            Batal
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button className="text-primary-700 text-xs mr-2" onClick={() => startEdit(t)}>
-                            Sunting
-                          </button>
-                          <button className="text-red-500 text-xs" onClick={() => removeRow(t.id)}>
-                            Hapus
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  )}
+                  <td className="py-2 pr-3 whitespace-nowrap text-center">
+                    {editingId === t.id ? (
+                      <>
+                        <button className="text-primary-700 mr-2" title="Simpan" onClick={() => saveEdit(t.id)}>
+                          💾
+                        </button>
+                        <button className="text-gray-400" title="Batal" onClick={() => setEditingId(null)}>
+                          ✕
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="mr-2" title="Lihat Detail" onClick={() => setDetailRow(t)}>
+                          👁️
+                        </button>
+                        {canEdit && (
+                          <>
+                            <button className="mr-2" title="Sunting" onClick={() => startEdit(t)}>
+                              ✏️
+                            </button>
+                            <button title="Hapus" onClick={() => removeRow(t.id)}>
+                              🗑️
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* ---- Modal Detail Transaksi ---- */}
+      {detailRow && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => setDetailRow(null)}
+        >
+          <div className="card max-w-md w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800">Detail Transaksi</h2>
+              <button className="text-gray-400 hover:text-gray-600" onClick={() => setDetailRow(null)}>
+                ✕
+              </button>
+            </div>
+            <dl className="text-sm divide-y">
+              {[
+                ["Tanggal", formatTanggal(detailRow.tanggal)],
+                ["Jenis", detailRow.jenis],
+                ["Periode", detailRow.periode],
+                ["Kriteria", detailRow.kriteria],
+                ["Uraian Asli", detailRow.uraian || "-"],
+                ["Keterangan", detailRow.keterangan || "-"],
+                ["Debet", detailRow.debet > 0 ? formatRupiah(detailRow.debet) : "-"],
+                ["Kredit", detailRow.kredit > 0 ? formatRupiah(detailRow.kredit) : "-"],
+                ["Saldo Berjalan", formatRupiah(detailRow.saldo)],
+                ["Dicatat", formatTanggal(detailRow.created_at)],
+              ].map(([label, value]) => (
+                <div key={label} className="flex gap-3 py-2 first:pt-0 last:pb-0">
+                  <span className="w-32 shrink-0 text-gray-400">{label}</span>
+                  <span className="text-gray-800 break-words">{value}</span>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
