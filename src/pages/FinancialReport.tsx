@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { FinancialTransaction } from "../types";
-import { TABEL_BANK, TABEL_INFAQ_BUKA_PUASA } from "../lib/tabelKeuangan";
+import { TABEL_INFAQ_BUKA_PUASA, TABEL_UP_BANK, TABEL_UP_TUNAI } from "../lib/tabelKeuangan";
 import LaporanKeuanganTab from "./dashboard/LaporanKeuanganTab";
 
 export default function FinancialReport() {
@@ -10,13 +10,19 @@ export default function FinancialReport() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([supabase.from(TABEL_BANK).select("*"), supabase.from(TABEL_INFAQ_BUKA_PUASA).select("*")]).then(
-      ([bank, buka]) => {
-        setTransactions((bank.data as FinancialTransaction[]) ?? []);
-        setBukaPuasa((buka.data as FinancialTransaction[]) ?? []);
-        setLoading(false);
-      }
-    );
+    // Laporan = kas operasional gabungan (tabel_up_bank + tabel_up_tunai),
+    // bukan tabel_bank -- lihat FinancePage.tsx.
+    Promise.all([
+      supabase.from(TABEL_UP_BANK).select("*"),
+      supabase.from(TABEL_UP_TUNAI).select("*"),
+      supabase.from(TABEL_INFAQ_BUKA_PUASA).select("*"),
+    ]).then(([upBank, upTunai, buka]) => {
+      const upBankRows = (upBank.data as FinancialTransaction[]) ?? [];
+      const upTunaiRows = (upTunai.data as FinancialTransaction[]) ?? [];
+      setTransactions([...upBankRows, ...upTunaiRows]);
+      setBukaPuasa((buka.data as FinancialTransaction[]) ?? []);
+      setLoading(false);
+    });
   }, []);
 
   return (

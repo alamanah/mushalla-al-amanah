@@ -8,6 +8,10 @@ export const KRITERIA_QURBAN: FinancialKriteria[] = ["Qurban", "Setor UM Qurban"
 export const KRITERIA_DONASI: FinancialKriteria[] = ["Donasi"];
 export const KRITERIA_RAMADHAN: FinancialKriteria[] = ["Ramadhan", "Setor UM Ramadhan", "Terima UM Ramadhan"];
 export const KRITERIA_BUKA_PUASA: FinancialKriteria[] = ["Infaq Buka Puasa"];
+/** Mutasi internal antar kantong (bank <-> kas tunai) -- bukan penerimaan/
+ * pengeluaran sungguhan, jadi tidak ikut dihitung di Laporan Keuangan supaya
+ * tidak dobel/salah arah waktu tabel_up_bank & tabel_up_tunai digabung. */
+export const KRITERIA_TRANSFER_UP_TUNAI: FinancialKriteria[] = ["Setor UP Tunai", "Terima UP Tunai"];
 
 /** Buka Puasa itu khusus: selain Kriteria "Infaq Buka Puasa", transaksi APAPUN
  * krtterianya tapi Keterangan-nya menyebut "Buka Puasa" tetap dianggap masuk
@@ -23,6 +27,7 @@ const EXCLUDED_KRITERIA_DARI_LAPORAN: FinancialKriteria[] = [
   ...KRITERIA_DONASI,
   ...KRITERIA_RAMADHAN,
   ...KRITERIA_BUKA_PUASA,
+  ...KRITERIA_TRANSFER_UP_TUNAI,
 ];
 
 /** Kriteria yang ditampilkan sebagai baris Penerimaan/Pengeluaran di Laporan Keuangan
@@ -60,20 +65,28 @@ export interface LaporanKeuanganResult {
 }
 
 /**
- * Bangun laporan keuangan mingguan untuk satu `periode` (mis. "Pekan 37"),
- * digabung dari SEMUA jenis rekening (BRI, BSI, UP Tunai).
+ * Bangun laporan keuangan mingguan untuk satu `periode` (mis. "Pekan 37").
+ *
+ * `allItems` HARUS gabungan tabel_up_bank + tabel_up_tunai (kas operasional
+ * gabungan BRI+BSI+Tunai, lihat FinancePage.tsx) -- BUKAN tabel_bank, supaya
+ * dana khusus (Qurban/Donasi/Ramadhan) tidak ikut lewat baris "sesuai csv"
+ * yang masih ada di tabel_bank.
  *
  * - Data Qurban/Donasi/Ramadhan/Buka Puasa dikeluarkan sepenuhnya dari perhitungan.
+ * - Kriteria "Setor/Terima UP Tunai" (mutasi internal bank<->tunai) juga
+ *   dikeluarkan -- itu cuma perpindahan antar kantong, bukan penerimaan/
+ *   pengeluaran sungguhan.
  * - Saldo Awal periode = saldo berjalan tepat SEBELUM transaksi pertama
- *   (non "Saldo Awal") pada periode ini -- otomatis ikut menghitung baris
- *   "Saldo Awal" rekening (BRI/BSI/UP Tunai) kalau itu yang mendahuluinya.
+ *   (non "Saldo Awal") pada periode ini -- otomatis ikut menjumlahkan baris
+ *   "Saldo Awal" BRI + BSI + UP Tunai (dari tabel_up_bank & tabel_up_tunai)
+ *   kalau itu yang mendahuluinya.
  */
 export function buildLaporanKeuangan(
   allItems: FinancialTransaction[],
   periode: string,
   /** Sumber data untuk total Infaq Buka Puasa (default: tabel_infaq_buka_puasa
-   * -- lihat FinancePage.tsx). Terpisah dari `allItems` (tabel_bank) karena
-   * sejak Migrasi 011, dana Buka Puasa dicatat di tabelnya sendiri. */
+   * -- lihat FinancePage.tsx). Terpisah dari `allItems` karena dana Buka
+   * Puasa dicatat di tabelnya sendiri. */
   bukaPuasaItems: FinancialTransaction[] = allItems
 ): LaporanKeuanganResult {
   const reportable = allItems.filter(

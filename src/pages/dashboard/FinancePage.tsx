@@ -12,6 +12,7 @@ import {
   TABEL_INFAQ_BUKA_PUASA,
   TABEL_QURBAN,
   TABEL_RAMADHAN,
+  TABEL_UP_BANK,
   TABEL_UP_TUNAI,
 } from "../../lib/tabelKeuangan";
 import LaporanKeuanganTab from "./LaporanKeuanganTab";
@@ -81,6 +82,7 @@ export default function FinancePage() {
   const canEdit = hasRole("bendahara"); // admin read-only, sesuai kebijakan moderasi
   // Data per tabel (Migrasi 011) -- lihat TABEL_BY_TAB di atas.
   const [bankRows, setBankRows] = useState<FinancialTransaction[]>([]);
+  const [upBankRowsRaw, setUpBankRowsRaw] = useState<FinancialTransaction[]>([]);
   const [upTunaiRowsRaw, setUpTunaiRowsRaw] = useState<FinancialTransaction[]>([]);
   const [bukaPuasaRowsRaw, setBukaPuasaRowsRaw] = useState<FinancialTransaction[]>([]);
   const [donasiRowsRaw, setDonasiRowsRaw] = useState<FinancialTransaction[]>([]);
@@ -127,13 +129,15 @@ export default function FinancePage() {
     setLoading(true);
     Promise.all([
       supabase.from(TABEL_BANK).select("*"),
+      supabase.from(TABEL_UP_BANK).select("*"),
       supabase.from(TABEL_UP_TUNAI).select("*"),
       supabase.from(TABEL_INFAQ_BUKA_PUASA).select("*"),
       supabase.from(TABEL_DONASI).select("*"),
       supabase.from(TABEL_RAMADHAN).select("*"),
       supabase.from(TABEL_QURBAN).select("*"),
-    ]).then(([bank, upTunai, bukaPuasa, donasi, ramadhan, qurban]) => {
+    ]).then(([bank, upBank, upTunai, bukaPuasa, donasi, ramadhan, qurban]) => {
       setBankRows((bank.data as FinancialTransaction[]) ?? []);
+      setUpBankRowsRaw((upBank.data as FinancialTransaction[]) ?? []);
       setUpTunaiRowsRaw((upTunai.data as FinancialTransaction[]) ?? []);
       setBukaPuasaRowsRaw((bukaPuasa.data as FinancialTransaction[]) ?? []);
       setDonasiRowsRaw((donasi.data as FinancialTransaction[]) ?? []);
@@ -154,6 +158,9 @@ export default function FinancePage() {
   const donasiRows = useMemo(() => computeRunningSaldo(donasiRowsRaw), [donasiRowsRaw]);
   const ramadhanRows = useMemo(() => computeRunningSaldo(ramadhanRowsRaw), [ramadhanRowsRaw]);
   const qurbanRows = useMemo(() => computeRunningSaldo(qurbanRowsRaw), [qurbanRowsRaw]);
+  // Laporan Keuangan = kas operasional gabungan (bank + tunai), BUKAN tabel_bank
+  // (yang juga menyimpan salinan dana khusus Donasi/Ramadhan/Qurban asli).
+  const laporanItems = useMemo(() => [...upBankRowsRaw, ...upTunaiRowsRaw], [upBankRowsRaw, upTunaiRowsRaw]);
 
   const isLaporan = activeTab === "Laporan";
   const currentTable = TABEL_BY_TAB[activeTab];
@@ -194,6 +201,7 @@ export default function FinancePage() {
     activeTab,
     pageSize,
     bankRows.length,
+    upBankRowsRaw.length,
     upTunaiRowsRaw.length,
     bukaPuasaRowsRaw.length,
     donasiRowsRaw.length,
@@ -706,7 +714,7 @@ export default function FinancePage() {
       </div>
 
       {isLaporan ? (
-        <LaporanKeuanganTab items={bankRows} bukaPuasaItems={bukaPuasaRowsRaw} />
+        <LaporanKeuanganTab items={laporanItems} bukaPuasaItems={bukaPuasaRowsRaw} />
       ) : (
         <>
       <div className="card mb-3 flex items-center justify-between">
