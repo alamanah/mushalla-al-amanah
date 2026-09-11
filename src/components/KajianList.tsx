@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { driveImageUrl } from "../lib/driveLink";
+import { bulanKeyDari, bulanKeySekarang, bulanOptionsDari, labelBulan } from "../lib/bulanFilter";
 import { KajianSchedule } from "../types";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -10,9 +11,18 @@ function formatTanggal(tgl: string) {
   return new Date(y, m - 1, d).toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 }
 
-export default function KajianList() {
+interface Props {
+  /** Batas tinggi card (px), dipakai supaya card ini mengikuti tinggi card
+   * Jadwal Khatib Jumat di beranda -- kalau isinya lebih panjang dari itu,
+   * daftarnya scroll sendiri (lihat Landing.tsx). null/undefined = tinggi
+   * alami (dipakai saat card ditumpuk di layar HP). */
+  maxHeight?: number | null;
+}
+
+export default function KajianList({ maxHeight }: Props) {
   const [items, setItems] = useState<KajianSchedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bulan, setBulan] = useState(bulanKeySekarang());
 
   useEffect(() => {
     supabase
@@ -27,15 +37,36 @@ export default function KajianList() {
       });
   }, []);
 
+  const bulanOptions = useMemo(
+    () => bulanOptionsDari(items.map((k) => k.specific_date)),
+    [items]
+  );
+  // Kajian dengan tanggal spesifik disaring sesuai bulan yang dipilih; kajian
+  // rutin mingguan (tanpa tanggal spesifik) selalu ikut tampil karena
+  // berlangsung tiap minggu, tidak terikat satu bulan tertentu.
+  const itemsBulanIni = useMemo(
+    () => items.filter((k) => !k.specific_date || bulanKeyDari(k.specific_date) === bulan),
+    [items, bulan]
+  );
+
   return (
-    <div className="card">
-      <h3 className="font-serif font-bold text-lg text-primary-900 mb-4">Jadwal Kajian</h3>
+    <div className="card flex flex-col" style={maxHeight ? { height: maxHeight } : undefined}>
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap shrink-0">
+        <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Kajian</h3>
+        <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>
+          {bulanOptions.map((b) => (
+            <option key={b} value={b}>
+              {labelBulan(b)}
+            </option>
+          ))}
+        </select>
+      </div>
       {loading && <p className="text-sm text-gray-400">Memuat jadwal kajian...</p>}
-      {!loading && items.length === 0 && (
-        <p className="text-sm text-gray-400">Belum ada jadwal kajian yang aktif.</p>
+      {!loading && itemsBulanIni.length === 0 && (
+        <p className="text-sm text-gray-400">Belum ada jadwal kajian pada bulan ini.</p>
       )}
-      <ul className="divide-y divide-gray-100">
-        {items.map((k) => (
+      <ul className="divide-y divide-gray-100 flex-1 min-h-0 overflow-y-auto">
+        {itemsBulanIni.map((k) => (
           <li key={k.id} className="py-4">
             <div className="flex flex-col sm:flex-row gap-4">
               {k.foto_url && (

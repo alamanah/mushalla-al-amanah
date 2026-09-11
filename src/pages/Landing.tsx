@@ -5,9 +5,16 @@ import KajianList from "../components/KajianList";
 import KhatibJumatList from "../components/KhatibJumatList";
 import InfaqCard from "../components/InfaqCard";
 import SocialLinks from "../components/SocialLinks";
+import { useElementHeight, useIsDesktop } from "../lib/useElementHeight";
 
 export default function Landing() {
   const { user } = useAuth();
+  // Card Jadwal Kajian mengikuti tinggi card Jadwal Khatib Jumat (yang lebih
+  // ringkas) supaya sejajar rapi saat ditampilkan berdampingan -- kalau
+  // isinya lebih panjang, daftarnya scroll sendiri (lihat KajianList.tsx).
+  // Cuma berlaku saat keduanya berdampingan (layar md ke atas).
+  const [khatibRef, khatibHeight] = useElementHeight<HTMLDivElement>();
+  const isDesktop = useIsDesktop();
 
   return (
     <div>
@@ -38,8 +45,8 @@ export default function Landing() {
         <div className="md:col-span-2">
           <PrayerTimesCard />
         </div>
-        <KajianList />
-        <KhatibJumatList />
+        <KajianList maxHeight={isDesktop ? khatibHeight : null} />
+        <KhatibJumatList ref={khatibRef} />
         <div className="md:col-span-2">
           <InfaqCard />
         </div>
