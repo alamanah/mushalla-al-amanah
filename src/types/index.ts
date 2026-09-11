@@ -1,5 +1,12 @@
 export type UserStatus = "pending" | "approved" | "rejected";
-export type AppRole = "admin" | "bendahara" | "inventaris";
+export type AppRole = "admin" | "bendahara" | "inventaris" | "humas";
+
+export const ROLE_LABEL: Record<AppRole, string> = {
+  admin: "Admin",
+  bendahara: "Bendahara",
+  inventaris: "Pengelola Inventaris",
+  humas: "Humas",
+};
 
 export interface Profile {
   id: string;
@@ -60,17 +67,65 @@ export interface AboutContent {
   updated_at: string;
 }
 
-export type TransactionType = "masuk" | "keluar";
+export type FinancialJenis = "BRI" | "BSI" | "UP Tunai";
+
+export const FINANCIAL_JENIS: FinancialJenis[] = ["BRI", "BSI", "UP Tunai"];
+
+export type FinancialKriteria =
+  | "Saldo Awal"
+  | "Transfer"
+  | "Setor Tunai Jumat"
+  | "QRIS"
+  | "Admin"
+  | "Gaji"
+  | "Kegiatan Dakwah"
+  | "Kegiatan Sosial"
+  | "Kegiatan Sarpras"
+  | "Lainnya"
+  | "Ramadhan"
+  | "Dana Pengqurban"
+  | "Qurban"
+  | "Donasi";
+
+export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
+  "Saldo Awal",
+  "Transfer",
+  "Setor Tunai Jumat",
+  "QRIS",
+  "Admin",
+  "Gaji",
+  "Kegiatan Dakwah",
+  "Kegiatan Sosial",
+  "Kegiatan Sarpras",
+  "Lainnya",
+  "Ramadhan",
+  "Dana Pengqurban",
+  "Qurban",
+  "Donasi",
+];
 
 export interface FinancialTransaction {
   id: string;
-  tanggal: string;
-  jenis: TransactionType;
-  kategori: string;
-  deskripsi: string | null;
-  jumlah: number;
+  tanggal: string | null; // ISO timestamptz, null hanya utk Saldo Awal tanpa tanggal
+  periode: string; // mis. "Pekan 1"
+  uraian: string | null; // deskripsi mentah asli dari rekening koran
+  kriteria: FinancialKriteria;
+  debet: number; // uang MASUK (perspektif kas mushalla)
+  kredit: number; // uang KELUAR (perspektif kas mushalla)
+  keterangan: string | null;
+  jenis: FinancialJenis;
   created_by: string | null;
   created_at: string;
+}
+
+/** Baris transaksi hasil parsing file, sebelum disimpan ke database. */
+export interface DraftTransaction {
+  tanggal: string; // datetime-local string "YYYY-MM-DDTHH:mm"
+  uraian: string;
+  kriteria: FinancialKriteria;
+  debet: number;
+  kredit: number;
+  keterangan: string;
 }
 
 export interface InventoryItem {
@@ -94,7 +149,7 @@ export interface Article {
   slug: string;
   content: string;
   cover_image_url: string | null;
-  author_id: string;
+  author_id: string | null;
   author_name: string | null;
   status: ArticleStatus;
   rejection_note: string | null;
