@@ -64,6 +64,10 @@ export default function FinancePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ kriteria: FinancialKriteria; keterangan: string } | null>(null);
 
+  // -- pilih banyak untuk hapus massal --
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const load = () => {
     setLoading(true);
     supabase
@@ -84,6 +88,38 @@ export default function FinancePage() {
   const isRekap = activeTab === "Rekapitulasi";
   const currentRows: TransactionWithSaldo[] = isRekap ? combinedRows : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeTab]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = currentRows.length > 0 && currentRows.every((r) => selectedIds.has(r.id));
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(currentRows.map((r) => r.id)));
+  };
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Hapus ${selectedIds.size} transaksi terpilih? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setBulkDeleting(true);
+    const { error } = await supabase.from("financial_transactions").delete().in("id", Array.from(selectedIds));
+    setBulkDeleting(false);
+    if (error) {
+      alert("Gagal menghapus: " + error.message);
+      return;
+    }
+    setSelectedIds(new Set());
+    load();
+  };
 
   const handlePickFile = (jenis: "BRI" | "BSI") => {
     setUploadJenis(jenis);
@@ -466,15 +502,46 @@ export default function FinancePage() {
         <span className="text-xl font-bold text-primary-800">{formatRupiah(saldoTerkini)}</span>
       </div>
 
+      {canEdit && selectedIds.size > 0 && (
+        <div className="card mb-3 flex items-center justify-between bg-red-50 border border-red-200">
+          <span className="text-sm text-red-700">{selectedIds.size} transaksi dipilih</span>
+          <div className="flex gap-2">
+            <button className="text-xs text-gray-500 hover:underline" onClick={() => setSelectedIds(new Set())}>
+              Batal Pilih
+            </button>
+            <button className="btn-danger !py-1 !px-3 text-xs" disabled={bulkDeleting} onClick={bulkDelete}>
+              {bulkDeleting ? "Menghapus..." : `Hapus ${selectedIds.size} Terpilih`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="card overflow-x-auto">
         {loading && <p className="text-sm text-gray-400">Memuat data...</p>}
         {!loading && currentRows.length === 0 && (
           <p className="text-sm text-gray-400">Belum ada transaksi untuk {activeTab}.</p>
         )}
         {currentRows.length > 0 && (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              {canEdit && <col className="w-8" />}
+              <col className="w-28" />
+              {isRekap && <col className="w-16" />}
+              <col className="w-20" />
+              <col className="w-28" />
+              <col />
+              <col className="w-28" />
+              <col className="w-28" />
+              <col className="w-28" />
+              {canEdit && <col className="w-24" />}
+            </colgroup>
             <thead>
               <tr className="text-left text-gray-500 border-b">
+                {canEdit && (
+                  <th className="py-2 pr-2">
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                  </th>
+                )}
                 <th className="py-2 pr-3">Tanggal</th>
                 {isRekap && <th className="py-2 pr-3">Jenis</th>}
                 <th className="py-2 pr-3">Periode</th>
@@ -488,15 +555,20 @@ export default function FinancePage() {
             </thead>
             <tbody>
               {currentRows.map((t) => (
-                <tr key={t.id} className="border-b last:border-0">
+                <tr key={t.id} className={`border-b last:border-0 ${selectedIds.has(t.id) ? "bg-red-50/50" : ""}`}>
+                  {canEdit && (
+                    <td className="py-2 pr-2">
+                      <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
+                    </td>
+                  )}
                   <td className="py-2 pr-3 whitespace-nowrap">{formatTanggal(t.tanggal)}</td>
                   {isRekap && (
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
                     </td>
                   )}
-                  <td className="py-2 pr-3 whitespace-nowrap text-gray-500">{t.periode}</td>
-                  <td className="py-2 pr-3">
+                  <td className="py-2 pr-3 truncate text-gray-500">{t.periode}</td>
+                  <td className="py-2 pr-3 truncate">
                     {editingId === t.id ? (
                       <select
                         className="input !text-xs !py-1"
@@ -513,7 +585,7 @@ export default function FinancePage() {
                       <span className="badge bg-gray-100 text-gray-600">{t.kriteria}</span>
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-gray-500 max-w-[200px]">
+                  <td className="py-2 pr-3 text-gray-500 truncate" title={t.keterangan ?? undefined}>
                     {editingId === t.id ? (
                       <input
                         className="input !text-xs !py-1"
@@ -524,11 +596,13 @@ export default function FinancePage() {
                       t.keterangan
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-right text-primary-700">
+                  <td className="py-2 pr-3 text-right text-primary-700 truncate">
                     {t.debet > 0 ? formatRupiah(t.debet) : ""}
                   </td>
-                  <td className="py-2 pr-3 text-right text-red-600">{t.kredit > 0 ? formatRupiah(t.kredit) : ""}</td>
-                  <td className="py-2 pr-3 text-right font-medium">{formatRupiah(t.saldo)}</td>
+                  <td className="py-2 pr-3 text-right text-red-600 truncate">
+                    {t.kredit > 0 ? formatRupiah(t.kredit) : ""}
+                  </td>
+                  <td className="py-2 pr-3 text-right font-medium truncate">{formatRupiah(t.saldo)}</td>
                   {canEdit && (
                     <td className="py-2 pr-3 whitespace-nowrap">
                       {editingId === t.id ? (

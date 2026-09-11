@@ -110,7 +110,16 @@ export default function FinancialReport() {
           <p className="text-sm text-gray-400">Tidak ada transaksi {activeTab} pada bulan ini.</p>
         )}
         {rowsBulanIni.length > 0 && (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col className="w-28" />
+              {isRekap && <col className="w-16" />}
+              <col className="w-28" />
+              <col />
+              <col className="w-28" />
+              <col className="w-28" />
+              <col className="w-28" />
+            </colgroup>
             <thead>
               <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 pr-4">Tanggal</th>
@@ -131,13 +140,17 @@ export default function FinancialReport() {
                       <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
                     </td>
                   )}
-                  <td className="py-2 pr-4">{t.kriteria}</td>
-                  <td className="py-2 pr-4 text-gray-500">{t.keterangan}</td>
-                  <td className="py-2 pr-4 text-right text-primary-700">
+                  <td className="py-2 pr-4 truncate">{t.kriteria}</td>
+                  <td className="py-2 pr-4 text-gray-500 truncate" title={t.keterangan ?? undefined}>
+                    {t.keterangan}
+                  </td>
+                  <td className="py-2 pr-4 text-right text-primary-700 truncate">
                     {t.debet > 0 ? formatRupiah(t.debet) : ""}
                   </td>
-                  <td className="py-2 pr-4 text-right text-red-600">{t.kredit > 0 ? formatRupiah(t.kredit) : ""}</td>
-                  <td className="py-2 pr-4 text-right font-medium">{formatRupiah(t.saldo)}</td>
+                  <td className="py-2 pr-4 text-right text-red-600 truncate">
+                    {t.kredit > 0 ? formatRupiah(t.kredit) : ""}
+                  </td>
+                  <td className="py-2 pr-4 text-right font-medium truncate">{formatRupiah(t.saldo)}</td>
                 </tr>
               ))}
             </tbody>
