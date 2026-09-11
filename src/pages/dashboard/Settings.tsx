@@ -1,6 +1,9 @@
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { AboutContent, InfaqInfo, KajianSchedule, PrayerOverride, SocialLink } from "../../types";
+import { useAuth } from "../../context/AuthContext";
+import { fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
+import { findLiveVideoId, isYoutubeLiveConfigured } from "../../lib/youtube";
+import { AboutContent, InfaqInfo, KajianSchedule, PrayerOverride, SocialLink, Ustadz } from "../../types";
 
 const TABS = ["kajian", "infaq", "sosmed", "tentang", "shalat"] as const;
 type Tab = (typeof TABS)[number];
@@ -42,41 +45,153 @@ export default function Settings() {
   );
 }
 
+const DEFAULT_LOKASI = "Mushalla Al Amanah GKN I Denpasar";
+const LIVE_POLL_MS = 20000; // jeda antar percobaan cek status live sesudah tombol "Mulai Live"
+const LIVE_POLL_ATTEMPTS = 10; // ~3-4 menit percobaan otomatis sebelum berhenti
+const BG_POLL_MS = 45000; // jeda cek berkala di kajian hari ini yang belum live
+
+function todayStr() {
+  // Pakai komponen tanggal LOKAL (bukan toISOString/UTC) supaya tidak salah
+  // tanggal saat dini hari WITA (UTC+8) dibanding UTC.
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatTanggalPanjang(tgl: string) {
+  const [y, m, d] = tgl.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+}
+
+/** Tentukan label jam otomatis: kalau jam yang dipilih ada dalam rentang toleransi
+ * sesudah Dzuhur/Maghrib pada tanggal terkait, pakai label "Ba'da ...", kalau tidak
+ * pakai format jam biasa. Pengurus tetap bisa menyunting hasilnya secara manual. */
+function resolveWaktuLabel(jam: string, prayer: PrayerTimesResult | null): string {
+  if (!jam) return "";
+  if (!prayer) return `Pukul ${jam.replace(":", ".")} WITA`;
+  const toMinutes = (hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const jamMin = toMinutes(jam);
+  const WINDOW = 90;
+  if (jamMin >= toMinutes(prayer.dzuhur) && jamMin - toMinutes(prayer.dzuhur) <= WINDOW) return "Ba'da Dzuhur";
+  if (jamMin >= toMinutes(prayer.maghrib) && jamMin - toMinutes(prayer.maghrib) <= WINDOW) return "Ba'da Maghrib";
+  return `Pukul ${jam.replace(":", ".")} WITA`;
+}
+
+const emptyKajianForm = {
+  title: "",
+  ustadz: "",
+  ustadzCustom: "",
+  tanggal: "",
+  jam: "",
+  time_text: "",
+  location: DEFAULT_LOKASI,
+  description: "",
+};
+
 function KajianSettings() {
+  const { user, profile } = useAuth();
   const [items, setItems] = useState<KajianSchedule[]>([]);
-  const [form, setForm] = useState({
-    title: "",
-    ustadz: "",
-    day_of_week: "5",
-    time_text: "",
-    location: "",
-    description: "",
-  });
+  const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
+  const [form, setForm] = useState(emptyKajianForm);
+  const [prayerForTanggal, setPrayerForTanggal] = useState<PrayerTimesResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [photoItem, setPhotoItem] = useState<KajianSchedule | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const [pollingIds, setPollingIds] = useState<Set<string>>(new Set());
+  const pollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const load = () =>
     supabase
       .from("kajian_schedule")
       .select("*")
+      .order("specific_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .then(({ data }) => setItems((data as KajianSchedule[]) ?? []));
 
   useEffect(() => {
     load();
+    supabase
+      .from("ustadz")
+      .select("*")
+      .order("nama", { ascending: true })
+      .then(({ data }) => setUstadzList((data as Ustadz[]) ?? []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Preview Hari & Tanggal Hijriah + ambil jam Dzuhur/Maghrib tanggal terkait
+  // (dipakai untuk auto-label "Ba'da ..." saat memilih Jam).
+  useEffect(() => {
+    if (!form.tanggal) {
+      setPrayerForTanggal(null);
+      return;
+    }
+    setPreviewLoading(true);
+    const [y, m, d] = form.tanggal.split("-").map(Number);
+    fetchPrayerTimes(new Date(y, m - 1, d))
+      .then((res) => setPrayerForTanggal(res))
+      .catch(() => setPrayerForTanggal(null))
+      .finally(() => setPreviewLoading(false));
+  }, [form.tanggal]);
+
+  // Auto-sinkron label Jam begitu jam dipilih (atau tanggal berubah setelah jam terisi).
+  useEffect(() => {
+    if (!form.jam) return;
+    setForm((f) => ({ ...f, time_text: resolveWaktuLabel(f.jam, prayerForTanggal) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.jam, prayerForTanggal]);
+
+  // Pantau berkala kajian HARI INI yang belum ada live_video_id -- otomatis
+  // terdeteksi begitu channel YouTube mulai live, tanpa perlu tempel link manual.
+  useEffect(() => {
+    if (!isYoutubeLiveConfigured()) return;
+    const pending = items.filter((k) => k.specific_date === todayStr() && k.is_active && !k.live_video_id);
+    if (pending.length === 0) return;
+    const interval = setInterval(async () => {
+      const videoId = await findLiveVideoId();
+      if (videoId) {
+        await Promise.all(
+          pending.map((k) => supabase.from("kajian_schedule").update({ live_video_id: videoId }).eq("id", k.id))
+        );
+        load();
+      }
+    }, BG_POLL_MS);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  useEffect(() => {
+    // Bersihkan semua timer polling manual saat komponen unmount.
+    const timers = pollTimers.current;
+    return () => Object.values(timers).forEach(clearTimeout);
+  }, []);
+
+  const resetForm = () => setForm(emptyKajianForm);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!form.tanggal) return;
+    setSaving(true);
+    const ustadzValue = form.ustadz === "__custom__" ? form.ustadzCustom.trim() || null : form.ustadz || null;
     await supabase.from("kajian_schedule").insert({
       title: form.title,
-      ustadz: form.ustadz || null,
-      day_of_week: Number(form.day_of_week),
-      time_text: form.time_text,
-      location: form.location || null,
+      ustadz: ustadzValue,
+      day_of_week: null,
+      specific_date: form.tanggal,
+      time_text: form.time_text || "Ba'da Maghrib",
+      location: form.location || DEFAULT_LOKASI,
       description: form.description || null,
       is_active: true,
     });
-    setForm({ title: "", ustadz: "", day_of_week: "5", time_text: "", location: "", description: "" });
+    setSaving(false);
+    resetForm();
     load();
   };
 
@@ -90,71 +205,310 @@ function KajianSettings() {
     load();
   };
 
+  // ---- Upload foto pamflet ----
+  const openPhoto = (k: KajianSchedule) => {
+    setPhotoItem(k);
+    setPhotoFile(null);
+    setPhotoError(null);
+  };
+  const closePhoto = () => {
+    setPhotoItem(null);
+    setPhotoFile(null);
+    setPhotoError(null);
+  };
+  const handlePhotoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (file && !file.type.startsWith("image/")) {
+      setPhotoError("File harus berupa gambar.");
+      return;
+    }
+    if (file && file.size > 3 * 1024 * 1024) {
+      setPhotoError("Ukuran foto maksimal 3MB.");
+      return;
+    }
+    setPhotoError(null);
+    setPhotoFile(file);
+  };
+  const uploadPhoto = async () => {
+    if (!photoItem || !photoFile) return;
+    setPhotoUploading(true);
+    setPhotoError(null);
+    const ext = photoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `kajian-poster/${photoItem.id}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("media")
+      .upload(path, photoFile, { cacheControl: "3600", upsert: true });
+    if (uploadError) {
+      setPhotoUploading(false);
+      setPhotoError("Gagal mengunggah foto. Coba lagi.");
+      return;
+    }
+    const fotoUrl = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
+    const { error: updateError } = await supabase
+      .from("kajian_schedule")
+      .update({ foto_url: fotoUrl })
+      .eq("id", photoItem.id);
+    setPhotoUploading(false);
+    if (updateError) {
+      setPhotoError("Foto terunggah tapi gagal disimpan. Coba lagi.");
+      return;
+    }
+    closePhoto();
+    load();
+  };
+
+  // ---- Live YouTube ----
+  const stopPolling = (id: string) => {
+    if (pollTimers.current[id]) {
+      clearTimeout(pollTimers.current[id]);
+      delete pollTimers.current[id];
+    }
+    setPollingIds((s) => {
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const pollAttempt = (id: string, attemptsLeft: number) => {
+    findLiveVideoId().then(async (videoId) => {
+      if (videoId) {
+        await supabase.from("kajian_schedule").update({ live_video_id: videoId }).eq("id", id);
+        stopPolling(id);
+        load();
+        return;
+      }
+      if (attemptsLeft <= 1) {
+        stopPolling(id);
+        return;
+      }
+      pollTimers.current[id] = setTimeout(() => pollAttempt(id, attemptsLeft - 1), LIVE_POLL_MS);
+    });
+  };
+
+  const startLive = async (k: KajianSchedule) => {
+    window.open("https://studio.youtube.com/live?action=create", "_blank", "noopener");
+    await supabase
+      .from("kajian_schedule")
+      .update({
+        live_by_name: profile?.full_name ?? user?.email ?? "Humas",
+        live_started_at: new Date().toISOString(),
+      })
+      .eq("id", k.id);
+    load();
+    if (isYoutubeLiveConfigured()) {
+      setPollingIds((s) => new Set(s).add(k.id));
+      pollAttempt(k.id, LIVE_POLL_ATTEMPTS);
+    }
+  };
+
+  const checkLiveNow = (k: KajianSchedule) => {
+    setPollingIds((s) => new Set(s).add(k.id));
+    pollAttempt(k.id, 1);
+  };
+
+  const endLive = async (k: KajianSchedule) => {
+    await supabase.from("kajian_schedule").update({ live_video_id: null }).eq("id", k.id);
+    load();
+  };
+
+  const formatJamLog = (t: string | null) => {
+    if (!t) return "-";
+    return new Date(t).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <div>
       <form onSubmit={submit} className="card grid sm:grid-cols-3 gap-3 mb-6">
+        <h2 className="sm:col-span-3 font-semibold text-gray-800">Tambah Jadwal Kajian</h2>
         <div>
           <label className="label">Judul Kajian</label>
           <input required className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         </div>
+
         <div>
           <label className="label">Ustadz/Pemateri</label>
-          <input className="input" value={form.ustadz} onChange={(e) => setForm({ ...form, ustadz: e.target.value })} />
-        </div>
-        <div>
-          <label className="label">Hari</label>
-          <select className="input" value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: e.target.value })}>
-            {HARI.map((h, i) => (
-              <option key={h} value={i}>
-                {h}
+          <select
+            className="input"
+            value={form.ustadz}
+            onChange={(e) => setForm({ ...form, ustadz: e.target.value })}
+          >
+            <option value="">- Pilih Ustadz -</option>
+            {ustadzList.map((u) => (
+              <option key={u.id} value={u.nama}>
+                {u.nama}
               </option>
             ))}
+            <option value="__custom__">+ Lainnya (ketik manual)</option>
           </select>
+          {form.ustadz === "__custom__" && (
+            <input
+              className="input mt-2"
+              placeholder="Nama ustadz/pemateri"
+              value={form.ustadzCustom}
+              onChange={(e) => setForm({ ...form, ustadzCustom: e.target.value })}
+            />
+          )}
         </div>
+
+        <div>
+          <label className="label">Tanggal</label>
+          <input
+            type="date"
+            required
+            className="input"
+            value={form.tanggal}
+            onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
+          />
+          {form.tanggal && (
+            <p className="text-xs text-gray-500 mt-1">
+              {formatTanggalPanjang(form.tanggal)}
+              {previewLoading && " · memuat tanggal Hijriah..."}
+              {!previewLoading && prayerForTanggal?.hijri && ` · ${prayerForTanggal.hijri}`}
+            </p>
+          )}
+        </div>
+
         <div>
           <label className="label">Jam</label>
           <input
+            type="time"
             required
-            placeholder="Ba'da Maghrib"
             className="input"
+            value={form.jam}
+            onChange={(e) => setForm({ ...form, jam: e.target.value })}
+          />
+          {form.tanggal && !prayerForTanggal && !previewLoading && (
+            <p className="text-xs text-yellow-600 mt-1">Gagal memuat jadwal shalat untuk sinkron otomatis.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="label">Keterangan Jam (otomatis, bisa diubah)</label>
+          <input
+            className="input"
+            required
             value={form.time_text}
             onChange={(e) => setForm({ ...form, time_text: e.target.value })}
+            placeholder="Ba'da Maghrib"
           />
         </div>
+
         <div>
           <label className="label">Lokasi</label>
           <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
         </div>
-        <div>
+
+        <div className="sm:col-span-3">
           <label className="label">Deskripsi</label>
           <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
-        <button className="btn-primary sm:col-span-3">Tambah Jadwal</button>
+
+        <button className="btn-primary sm:col-span-3" disabled={saving}>
+          {saving ? "Menyimpan..." : "Tambah Jadwal"}
+        </button>
       </form>
 
+      {!isYoutubeLiveConfigured() && (
+        <p className="text-xs text-yellow-600 mb-4">
+          Deteksi otomatis Live YouTube belum aktif (lihat supabase/SETUP.md bagian "Live YouTube otomatis"). Tombol
+          "Mulai Live" tetap bisa dipakai untuk membuka YouTube Studio.
+        </p>
+      )}
+
       <div className="space-y-2">
-        {items.map((k) => (
-          <div key={k.id} className="card flex items-center justify-between">
-            <div>
-              <p className="font-medium">{k.title}</p>
-              <p className="text-xs text-gray-500">
-                {HARI[k.day_of_week ?? 0]} · {k.time_text} {k.ustadz ? `· ${k.ustadz}` : ""}
-              </p>
+        {items.map((k) => {
+          const isToday = k.specific_date === todayStr();
+          const isPolling = pollingIds.has(k.id);
+          return (
+            <div key={k.id} className="card">
+              <div className="flex items-start gap-3">
+                {k.foto_url && (
+                  <img src={k.foto_url} alt="" className="h-14 w-14 rounded-lg object-cover border border-gray-100 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium">{k.title}</p>
+                    {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
+                    {isToday && <span className="badge bg-gold-500/20 text-gold-700">Hari ini</span>}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {k.specific_date ? formatTanggalPanjang(k.specific_date) : k.day_of_week !== null ? HARI[k.day_of_week] : ""}{" "}
+                    · {k.time_text} {k.ustadz ? `· ${k.ustadz}` : ""} {k.location ? `· ${k.location}` : ""}
+                  </p>
+                  {k.live_by_name && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Live terakhir dimulai oleh {k.live_by_name}, {formatJamLog(k.live_started_at)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5 items-end shrink-0">
+                  <div className="flex gap-2 items-center">
+                    <button
+                      className={`badge ${k.is_active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-500"}`}
+                      onClick={() => toggleActive(k.id, k.is_active)}
+                    >
+                      {k.is_active ? "Aktif" : "Nonaktif"}
+                    </button>
+                    <button className="text-xs text-primary-700" onClick={() => openPhoto(k)}>
+                      {k.foto_url ? "Ganti Pamflet" : "Upload Pamflet"}
+                    </button>
+                    <button className="text-red-500 text-xs" onClick={() => remove(k.id)}>
+                      Hapus
+                    </button>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    {k.live_video_id ? (
+                      <button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => endLive(k)}>
+                        Akhiri Live
+                      </button>
+                    ) : (
+                      <button className="btn-primary !py-1 !px-2 text-xs !bg-red-600 hover:!bg-red-700" onClick={() => startLive(k)}>
+                        Mulai Live
+                      </button>
+                    )}
+                    {isYoutubeLiveConfigured() && !k.live_video_id && (
+                      <button
+                        className="text-xs text-gray-500 hover:text-primary-700"
+                        onClick={() => checkLiveNow(k)}
+                        disabled={isPolling}
+                      >
+                        {isPolling ? "Mengecek..." : "Cek Status"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2 items-center">
-              <button
-                className={`badge ${k.is_active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-500"}`}
-                onClick={() => toggleActive(k.id, k.is_active)}
-              >
-                {k.is_active ? "Aktif" : "Nonaktif"}
+          );
+        })}
+      </div>
+
+      {photoItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="card max-w-sm w-full">
+            <h3 className="font-semibold text-gray-800 mb-1">{photoItem.title}</h3>
+            <p className="text-xs text-gray-500 mb-3">Unggah gambar pamflet, akan tampil di beranda pada jadwal kajian ini.</p>
+            {(photoFile || photoItem.foto_url) && (
+              <img
+                src={photoFile ? URL.createObjectURL(photoFile) : photoItem.foto_url ?? undefined}
+                alt=""
+                className="w-full rounded-lg mb-3 border border-gray-100"
+              />
+            )}
+            <input type="file" accept="image/*" capture="environment" className="input" onChange={handlePhotoFileChange} />
+            {photoError && <p className="text-xs text-red-600 mt-1">{photoError}</p>}
+            <div className="flex gap-2 mt-3">
+              <button className="btn-primary flex-1" disabled={!photoFile || photoUploading} onClick={uploadPhoto}>
+                {photoUploading ? "Mengunggah..." : "Simpan Foto"}
               </button>
-              <button className="text-red-500 text-xs" onClick={() => remove(k.id)}>
-                Hapus
+              <button className="btn-secondary" onClick={closePhoto}>
+                Batal
               </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

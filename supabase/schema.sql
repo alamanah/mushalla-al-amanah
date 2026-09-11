@@ -66,6 +66,10 @@ create table if not exists public.kajian_schedule (
   time_text text not null,
   location text,
   description text,
+  foto_url text, -- gambar pamflet kajian, ditampilkan di beranda
+  live_video_id text, -- ID video YouTube yang sedang live (auto terdeteksi via YouTube Data API)
+  live_by_name text, -- nama user humas yang terakhir menekan tombol "Mulai Live"
+  live_started_at timestamptz, -- jam terakhir tombol "Mulai Live" ditekan
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -433,11 +437,16 @@ drop policy if exists "inventory_disposals_write_inventaris" on public.inventory
 create policy "inventory_disposals_write_inventaris" on public.inventory_disposals for insert
   with check (public.has_role(auth.uid(), 'inventaris'));
 
--- referensi ustadz: khusus halaman dashboard admin (bukan konsumsi publik)
+-- referensi ustadz: kelola (tambah/ubah/hapus) khusus admin; humas boleh baca
+-- saja (dipakai untuk dropdown pilih Ustadz di Pengaturan Konten > Jadwal Kajian).
 drop policy if exists "ustadz_admin_all" on public.ustadz;
 create policy "ustadz_admin_all" on public.ustadz for all
   using (public.is_admin(auth.uid()))
   with check (public.is_admin(auth.uid()));
+
+drop policy if exists "ustadz_humas_read" on public.ustadz;
+create policy "ustadz_humas_read" on public.ustadz for select
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'humas'));
 
 -- artikel: publik hanya lihat yang published; penulis lihat/kelola miliknya; admin kelola semua
 drop policy if exists "articles_public_read_published" on public.articles;

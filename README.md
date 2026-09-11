@@ -64,6 +64,10 @@ tambahkan 2 secret ini (nilainya ada di file `.env.example`):
 > Anon key ini **aman** dipasang di frontend/publik — akses data tetap dibatasi oleh
 > Row Level Security (RLS) yang sudah diatur di `supabase/schema.sql`.
 
+Opsional, untuk fitur deteksi otomatis Live YouTube di Jadwal Kajian, tambahkan juga
+`VITE_YOUTUBE_API_KEY` dan `VITE_YOUTUBE_CHANNEL_ID` — lihat `supabase/SETUP.md` bagian
+"Live YouTube otomatis" untuk cara mendapatkannya.
+
 ### d. Aktifkan GitHub Pages
 
 Buka **Settings → Pages** → bagian **Build and deployment** → **Source**, pilih

@@ -77,6 +77,14 @@ Tunai"**, jalankan:
    tambah nilai enum `financial_jenis` & `financial_kriteria` baru. **Jalankan file ini
    sendirian** (Run terpisah, tidak digabung query lain).
 
+Kalau kamu sudah pernah menjalankan migrasi (1)-(8) dan sekarang perlu melengkapi
+**Jadwal Kajian** (foto pamflet, status Live YouTube otomatis), jalankan:
+
+9. [`migration_009_kajian_lengkap.sql`](./migration_009_kajian_lengkap.sql) — tambah
+   kolom `foto_url`, `live_video_id`, `live_by_name`, `live_started_at` pada
+   `kajian_schedule`, dan izinkan role **humas** membaca daftar Ustadz (dipakai
+   sebagai dropdown di form Jadwal Kajian).
+
 Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,
@@ -175,6 +183,43 @@ Setelah login sebagai admin, buka **Dashboard → Pengaturan Konten** untuk meng
 
 Jadwal shalat harian di landing page dihitung **otomatis** (Aladhan API, metode Kemenag,
 lokasi Denpasar) — tidak perlu diisi manual kecuali ingin override tanggal tertentu.
+
+---
+
+## 5. (Opsional) Live YouTube otomatis di Jadwal Kajian
+
+Fitur ini membuat Dashboard → Pengaturan Konten → Jadwal Kajian bisa **otomatis mendeteksi**
+saat channel YouTube `alamanahgknidenpasar@gmail.com` sedang live, tanpa perlu tempel link
+manual. Ini opsional — kalau langkah ini dilewati, semua fitur lain tetap jalan normal,
+cuma tombol "Live"-nya tidak akan mendeteksi apa-apa.
+
+Perlu 2 nilai dari **Google Cloud Console** (punya akun Google yang sama dengan
+`alamanahgknidenpasar@gmail.com`, atau akun lain yang jadi pengelola channel-nya):
+
+1. Buka https://console.cloud.google.com/ → buat project baru (nama bebas, mis. "Al Amanah Website").
+2. Menu **APIs & Services → Library**, cari **"YouTube Data API v3"**, klik **Enable**.
+3. Menu **APIs & Services → Credentials → Create Credentials → API key**. Salin API key
+   yang muncul — ini nilai **`VITE_YOUTUBE_API_KEY`**.
+4. **Penting (keamanan):** klik API key yang baru dibuat tadi → di bagian **Application
+   restrictions** pilih **Websites** → tambahkan alamat website kamu, contoh:
+   `https://<username-github>.github.io/*`. Ini supaya API key tidak bisa dipakai
+   sembarangan orang dari website lain.
+5. Cari **Channel ID** channel YouTube `alamanahgknidenpasar@gmail.com`: login ke YouTube
+   pakai akun itu → **YouTube Studio** → **Setelan → Channel → Info dasar** → salin
+   **Channel ID** (diawali `UC...`). Ini nilai **`VITE_YOUTUBE_CHANNEL_ID`**.
+6. Tambahkan kedua nilai ini sebagai **GitHub Actions secrets** di repo (Settings →
+   Secrets and variables → Actions → New repository secret), sama seperti
+   `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`:
+   - `VITE_YOUTUBE_API_KEY`
+   - `VITE_YOUTUBE_CHANNEL_ID`
+7. Push ulang (atau re-run GitHub Actions workflow-nya) supaya nilai baru ini ikut ter-build.
+
+Cara kerja setelah ini terpasang: saat halaman Dashboard → Pengaturan Konten → Jadwal
+Kajian dibuka dan ada jadwal kajian untuk **hari ini**, aplikasi otomatis mengecek berkala
+ke YouTube apakah channel sedang live; begitu terdeteksi, video langsung muncul ter-embed
+di beranda pada jadwal kajian tersebut. Tombol **"Mulai Live"** di tabel jadwal juga bisa
+dipakai untuk langsung membuka YouTube Studio (memulai siaran) sekaligus mencatat siapa
+yang menekannya dan jam berapa.
 
 ---
 
