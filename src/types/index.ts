@@ -129,6 +129,7 @@ export interface DraftTransaction {
   debet: number;
   kredit: number;
   keterangan: string;
+  jenis: FinancialJenis; // default ikut tombol upload yang dipakai (BRI/BSI), bisa diubah manual
 }
 
 export interface InventoryCategory {

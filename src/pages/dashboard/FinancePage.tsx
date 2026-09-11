@@ -246,7 +246,7 @@ export default function FinancePage() {
       debet: d.debet,
       kredit: d.kredit,
       keterangan: d.keterangan,
-      jenis: uploadJenis,
+      jenis: d.jenis,
       created_by: user?.id ?? null,
     }));
     const { error } = await supabase.from("financial_transactions").insert(rows);
@@ -382,6 +382,7 @@ export default function FinancePage() {
                 <tr className="text-left text-gray-500 border-b">
                   <th className="py-1 pr-2">Tanggal</th>
                   <th className="py-1 pr-2">Uraian Asli</th>
+                  <th className="py-1 pr-2">Jenis</th>
                   <th className="py-1 pr-2">Kriteria</th>
                   <th className="py-1 pr-2 text-right">Debet</th>
                   <th className="py-1 pr-2 text-right">Kredit</th>
@@ -402,6 +403,19 @@ export default function FinancePage() {
                       />
                     </td>
                     <td className="py-1 pr-2 max-w-[220px] text-gray-500">{d.uraian}</td>
+                    <td className="py-1 pr-2">
+                      <select
+                        className="input !text-xs !py-1"
+                        value={d.jenis}
+                        onChange={(e) => updateDraft(idx, { jenis: e.target.value as FinancialJenis })}
+                      >
+                        {FINANCIAL_JENIS.map((j) => (
+                          <option key={j} value={j}>
+                            {j}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-1 pr-2">
                       <select
                         className="input !text-xs !py-1"

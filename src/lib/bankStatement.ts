@@ -121,6 +121,7 @@ export async function parseBriStatement(file: File): Promise<DraftTransaction[]>
       debet,
       kredit,
       keterangan: uraian,
+      jenis: "BRI",
     });
   }
   return out;
@@ -158,6 +159,7 @@ export async function parseBsiStatement(file: File): Promise<DraftTransaction[]>
       debet,
       kredit,
       keterangan: uraian,
+      jenis: "BSI",
     });
   }
   return out;
