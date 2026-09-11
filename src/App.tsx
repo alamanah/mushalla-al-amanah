@@ -45,7 +45,7 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute roles={["admin", "bendahara", "inventaris"]}>
+              <ProtectedRoute roles={["admin", "bendahara", "inventaris", "humas"]}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -86,7 +86,7 @@ export default function App() {
             <Route
               path="pengaturan"
               element={
-                <ProtectedRoute roles={["admin"]}>
+                <ProtectedRoute roles={["admin", "humas"]}>
                   <Settings />
                 </ProtectedRoute>
               }
