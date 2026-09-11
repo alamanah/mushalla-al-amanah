@@ -250,21 +250,31 @@ export default function FinancePage() {
   };
 
   const updateDraft = (idx: number, patch: Partial<DraftTransaction>) => {
-    setDrafts((ds) =>
-      ds.map((d, i) => {
-        if (i !== idx) return d;
-        const next = { ...d, ...patch };
-        // Jenis UP Tunai kebalikan dari rekening bank: transfer yang di rekening
-        // asal tercatat Kredit (uang keluar) berarti Debet (uang masuk) di UP
-        // Tunai, begitu juga sebaliknya -- jadi saat baris dipindah dari/ke
-        // Jenis "UP Tunai", Debet & Kredit-nya otomatis ditukar.
-        if (patch.jenis && (patch.jenis === "UP Tunai") !== (d.jenis === "UP Tunai")) {
-          next.debet = d.kredit;
-          next.kredit = d.debet;
-        }
+    // Memilih Jenis "UP Tunai" pada baris upload rekening koran BUKAN untuk
+    // mengubah baris itu sendiri, tapi untuk MEMICU PENAMBAHAN baris jurnal
+    // kontra baru -- baris asal (BRI/BSI) tetap apa adanya sesuai data
+    // rekening koran (jejaknya tidak boleh berubah). Baris baru itu adalah
+    // duplikat baris asal dengan nominal kontra (Debet<->Kredit ditukar),
+    // Jenis "UP Tunai", Kriteria "Setor UP Tunai" (bisa disunting lagi kalau
+    // ternyata arahnya "Terima UP Tunai").
+    if (patch.jenis === "UP Tunai") {
+      setDrafts((ds) => {
+        const src = ds[idx];
+        if (!src || src.jenis === "UP Tunai") return ds;
+        const kontra: DraftTransaction = {
+          ...src,
+          jenis: "UP Tunai",
+          kriteria: "Setor UP Tunai",
+          debet: src.kredit,
+          kredit: src.debet,
+        };
+        const next = [...ds];
+        next.splice(idx + 1, 0, kontra);
         return next;
-      })
-    );
+      });
+      return;
+    }
+    setDrafts((ds) => ds.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
   };
   const removeDraft = (idx: number) => {
     setDrafts((ds) => ds.filter((_, i) => i !== idx));
@@ -398,7 +408,7 @@ export default function FinancePage() {
       {/* ---- Preview & edit hasil upload sebelum disimpan ---- */}
       {uploadJenis && drafts.length > 0 && (
         <div className="card mb-6 border-2 border-primary-300">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h2 className="font-semibold text-gray-800">
               Pratinjau Upload {uploadJenis} — {drafts.length} baris
             </h2>
@@ -418,6 +428,11 @@ export default function FinancePage() {
               </datalist>
             </div>
           </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Pilih Jenis <b>"UP Tunai"</b> pada baris yang uangnya masuk/keluar ke kas tunai (mis. tarik tunai dari
+            bank) untuk <b>menambah baris jurnal kontra baru</b> secara otomatis (nominal dibalik, Kriteria "Setor UP
+            Tunai") -- baris {uploadJenis} aslinya tidak berubah.
+          </p>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
