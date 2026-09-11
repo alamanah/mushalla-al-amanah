@@ -77,9 +77,12 @@ export default function FinancePage() {
 
   // -- inline edit existing row --
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ tanggal: string; kriteria: FinancialKriteria; keterangan: string } | null>(
-    null
-  );
+  const [editForm, setEditForm] = useState<{
+    tanggal: string;
+    jenis: FinancialJenis;
+    kriteria: FinancialKriteria;
+    keterangan: string;
+  } | null>(null);
 
   // -- pilih banyak untuk hapus massal --
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -129,12 +132,6 @@ export default function FinancePage() {
 
   const isRekap = activeTab === "Rekapitulasi";
   const isLaporan = activeTab === "Laporan";
-  const isMultiJenis =
-    isRekap ||
-    activeTab === "Qurban" ||
-    activeTab === "Donasi" ||
-    activeTab === "Ramadhan" ||
-    activeTab === "Buka Puasa";
 
   const currentRows: TransactionWithSaldo[] = isRekap
     ? combinedRows
@@ -328,6 +325,7 @@ export default function FinancePage() {
     setEditingId(row.id);
     setEditForm({
       tanggal: toWitaDatetimeLocal(row.tanggal),
+      jenis: row.jenis,
       kriteria: row.kriteria,
       keterangan: row.keterangan ?? "",
     });
@@ -338,6 +336,7 @@ export default function FinancePage() {
       .from("financial_transactions")
       .update({
         tanggal: datetimeLocalToWitaIso(editForm.tanggal),
+        jenis: editForm.jenis,
         kriteria: editForm.kriteria,
         keterangan: editForm.keterangan,
       })
@@ -674,7 +673,7 @@ export default function FinancePage() {
             <colgroup>
               {canEdit && <col className="w-8" />}
               <col className="w-36" />
-              {isMultiJenis && <col className="w-32" />}
+              <col className="w-32" />
               <col className="w-24" />
               <col className="w-32" />
               <col />
@@ -691,7 +690,7 @@ export default function FinancePage() {
                   </th>
                 )}
                 <th className="py-2 pr-3 bg-white">Tanggal</th>
-                {isMultiJenis && <th className="py-2 pr-3 bg-white">Jenis</th>}
+                <th className="py-2 pr-3 bg-white">Jenis</th>
                 <th className="py-2 pr-3 bg-white">Periode</th>
                 <th className="py-2 pr-3 bg-white">Kriteria</th>
                 <th className="py-2 pr-3 bg-white">Keterangan</th>
@@ -721,11 +720,23 @@ export default function FinancePage() {
                       formatTanggal(t.tanggal)
                     )}
                   </td>
-                  {isMultiJenis && (
-                    <td className="py-2 pr-3 whitespace-nowrap">
+                  <td className="py-2 pr-3 whitespace-nowrap">
+                    {editingId === t.id ? (
+                      <select
+                        className="input !text-xs !py-1"
+                        value={editForm?.jenis}
+                        onChange={(e) => setEditForm((f) => (f ? { ...f, jenis: e.target.value as FinancialJenis } : f))}
+                      >
+                        {FINANCIAL_JENIS.map((j) => (
+                          <option key={j} value={j}>
+                            {j}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
                       <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
-                    </td>
-                  )}
+                    )}
+                  </td>
                   <td className="py-2 pr-3 truncate text-gray-500">{t.periode}</td>
                   <td className="py-2 pr-3 truncate">
                     {editingId === t.id ? (
