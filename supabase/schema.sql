@@ -40,6 +40,7 @@ create table if not exists public.profiles (
   email text,
   full_name text,
   phone text,
+  avatar_url text,
   status user_status not null default 'pending',
   created_at timestamptz not null default now()
 );
@@ -404,6 +405,33 @@ create policy "media_manage_own_or_admin" on storage.objects for update
 drop policy if exists "media_delete_own_or_admin" on storage.objects;
 create policy "media_delete_own_or_admin" on storage.objects for delete
   using (bucket_id = 'media' and (owner = auth.uid() or public.is_admin(auth.uid())));
+
+-- foto profil: siapa saja yang login (approved atau belum) boleh unggah/ubah/hapus
+-- foto profilnya sendiri, disimpan di path "avatars/{user_id}/...".
+drop policy if exists "avatars_insert_own" on storage.objects;
+create policy "avatars_insert_own" on storage.objects for insert
+  with check (
+    bucket_id = 'media'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = 'avatars'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+drop policy if exists "avatars_update_own" on storage.objects;
+create policy "avatars_update_own" on storage.objects for update
+  using (
+    bucket_id = 'media'
+    and (storage.foldername(name))[1] = 'avatars'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+drop policy if exists "avatars_delete_own" on storage.objects;
+create policy "avatars_delete_own" on storage.objects for delete
+  using (
+    bucket_id = 'media'
+    and (storage.foldername(name))[1] = 'avatars'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
 
 -- =====================================================================
 -- SELESAI. Langkah selanjutnya: lihat SETUP.md untuk konfigurasi Auth

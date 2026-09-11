@@ -45,16 +45,36 @@ export default function DashboardLayout() {
               </NavLink>
             ))}
         </nav>
-        <div className="p-3 border-t border-white/10 text-xs text-white/60">
-          <p className="mb-2">{profile?.full_name}</p>
-          <button onClick={handleLogout} className="text-gold-400 hover:underline">
+      </aside>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="h-16 shrink-0 bg-white border-b border-gray-100 flex items-center justify-end gap-3 px-6">
+          <Link
+            to="/profil"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-primary-700 min-w-0"
+          >
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt=""
+                className="h-8 w-8 rounded-full object-cover border border-gray-200 shrink-0"
+              />
+            ) : (
+              <span className="h-8 w-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold shrink-0">
+                {(profile?.full_name ?? "?").charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span className="hidden sm:inline font-medium truncate max-w-[140px]">
+              {profile?.full_name ?? "Akun Saya"}
+            </span>
+          </Link>
+          <button onClick={handleLogout} className="btn-secondary text-sm">
             Keluar
           </button>
-        </div>
-      </aside>
-      <div className="flex-1 min-w-0">
-        <div className="max-w-7xl mx-auto p-6">
-          <Outlet />
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto p-6">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

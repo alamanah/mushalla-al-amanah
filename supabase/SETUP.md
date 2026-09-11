@@ -43,6 +43,12 @@ menambahkan halaman **Referensi** (daftar Ustadz), jalankan juga:
 3. [`migration_003_referensi.sql`](./migration_003_referensi.sql) — bikin tabel `ustadz`
    khusus untuk halaman Dashboard → Referensi (hanya admin yang bisa akses).
 
+Kalau kamu sudah pernah menjalankan semua migrasi di atas dan sekarang cuma perlu
+menambahkan fitur **foto profil**, jalankan juga:
+
+4. [`migration_004_avatar.sql`](./migration_004_avatar.sql) — tambah kolom `avatar_url`
+   pada `profiles` + izin storage supaya tiap user bisa unggah foto profilnya sendiri.
+
 Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,
@@ -72,7 +78,9 @@ Buka menu **Authentication → Providers**:
    - **Site URL**: isi dengan URL GitHub Pages kamu setelah deploy, contoh:
      `https://<username-github>.github.io/<nama-repo>/`
    - **Redirect URLs**: tambahkan juga:
-     `https://<username-github>.github.io/<nama-repo>/auth/callback`
+     `https://<username-github>.github.io/<nama-repo>/auth/callback` dan
+     `https://<username-github>.github.io/<nama-repo>/reset-password` (dipakai oleh
+     tombol "Lupa password?" di halaman Masuk)
      (boleh tambahkan juga `http://localhost:5173/*` untuk development lokal)
 
    > Jika kamu belum deploy dan belum tahu URL final, isi dulu dengan `http://localhost:5173`,

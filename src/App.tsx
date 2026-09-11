@@ -13,6 +13,7 @@ import ArticleEditor from "./pages/ArticleEditor";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/profil" element={<ProtectedRoute requireApproved={false}><Profile /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Route>
