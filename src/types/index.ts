@@ -86,7 +86,8 @@ export type FinancialKriteria =
   | "Ramadhan"
   | "Dana Pengqurban"
   | "Qurban"
-  | "Donasi";
+  | "Donasi"
+  | "Infaq Buka Puasa";
 
 export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
   "Saldo Awal",
@@ -103,6 +104,7 @@ export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
   "Dana Pengqurban",
   "Qurban",
   "Donasi",
+  "Infaq Buka Puasa",
 ];
 
 export interface FinancialTransaction {

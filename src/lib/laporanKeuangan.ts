@@ -1,15 +1,28 @@
 import { FinancialKriteria, FinancialTransaction } from "../types";
 import { computeRunningSaldo } from "./saldo";
 
-/** Kriteria yang dikelola di tab tersendiri (Qurban/Donasi/Ramadhan) dan TIDAK
- * masuk ke perhitungan Laporan Keuangan mingguan (dana khusus, di luar kas umum). */
+/** Kriteria yang dikelola di tab tersendiri (Qurban/Donasi/Ramadhan/Buka Puasa)
+ * dan TIDAK masuk ke perhitungan Laporan Keuangan mingguan (dana khusus, di
+ * luar kas umum). */
 export const KRITERIA_QURBAN: FinancialKriteria[] = ["Qurban", "Dana Pengqurban"];
 export const KRITERIA_DONASI: FinancialKriteria[] = ["Donasi"];
 export const KRITERIA_RAMADHAN: FinancialKriteria[] = ["Ramadhan"];
-const EXCLUDED_DARI_LAPORAN: FinancialKriteria[] = [
+export const KRITERIA_BUKA_PUASA: FinancialKriteria[] = ["Infaq Buka Puasa"];
+
+/** Buka Puasa itu khusus: selain Kriteria "Infaq Buka Puasa", transaksi APAPUN
+ * krtterianya tapi Keterangan-nya menyebut "Buka Puasa" tetap dianggap masuk
+ * tab/dana Buka Puasa (mis. dicatat manual dengan kriteria "Lainnya" tapi
+ * keterangan "Infaq Buka Puasa RT 05"). */
+export function isBukaPuasa(t: Pick<FinancialTransaction, "kriteria" | "keterangan">): boolean {
+  if (KRITERIA_BUKA_PUASA.includes(t.kriteria)) return true;
+  return (t.keterangan ?? "").toLowerCase().includes("buka puasa");
+}
+
+const EXCLUDED_KRITERIA_DARI_LAPORAN: FinancialKriteria[] = [
   ...KRITERIA_QURBAN,
   ...KRITERIA_DONASI,
   ...KRITERIA_RAMADHAN,
+  ...KRITERIA_BUKA_PUASA,
 ];
 
 /** Kriteria yang ditampilkan sebagai baris Penerimaan/Pengeluaran di Laporan Keuangan
@@ -47,13 +60,15 @@ export interface LaporanKeuanganResult {
  * Bangun laporan keuangan mingguan untuk satu `periode` (mis. "Pekan 37"),
  * digabung dari SEMUA jenis rekening (BRI, BSI, UP Tunai).
  *
- * - Data Qurban/Donasi/Ramadhan dikeluarkan sepenuhnya dari perhitungan.
+ * - Data Qurban/Donasi/Ramadhan/Buka Puasa dikeluarkan sepenuhnya dari perhitungan.
  * - Saldo Awal periode = saldo berjalan tepat SEBELUM transaksi pertama
  *   (non "Saldo Awal") pada periode ini -- otomatis ikut menghitung baris
  *   "Saldo Awal" rekening (BRI/BSI/UP Tunai) kalau itu yang mendahuluinya.
  */
 export function buildLaporanKeuangan(allItems: FinancialTransaction[], periode: string): LaporanKeuanganResult {
-  const reportable = allItems.filter((t) => !EXCLUDED_DARI_LAPORAN.includes(t.kriteria));
+  const reportable = allItems.filter(
+    (t) => !EXCLUDED_KRITERIA_DARI_LAPORAN.includes(t.kriteria) && !isBukaPuasa(t)
+  );
   const runningRows = computeRunningSaldo(reportable);
 
   const idxFirst = runningRows.findIndex((r) => r.periode === periode && r.kriteria !== "Saldo Awal");

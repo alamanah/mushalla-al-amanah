@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { parseBriStatement, parseBsiStatement, splitDuplicates } from "../../lib/bankStatement";
 import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
-import { KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
+import { isBukaPuasa, KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
 import LaporanKeuanganTab from "./LaporanKeuanganTab";
 import {
   DraftTransaction,
@@ -46,8 +46,8 @@ function formatTanggal(t: string | null) {
   });
 }
 
-type ActiveTab = FinancialJenis | "Rekapitulasi" | "Qurban" | "Donasi" | "Ramadhan" | "Laporan";
-const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi", "Qurban", "Donasi", "Ramadhan", "Laporan"];
+type ActiveTab = FinancialJenis | "Rekapitulasi" | "Qurban" | "Donasi" | "Ramadhan" | "Buka Puasa" | "Laporan";
+const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi", "Qurban", "Donasi", "Ramadhan", "Buka Puasa", "Laporan"];
 const PAGE_SIZES = [25, 50, 100] as const;
 
 const emptyManualForm = {
@@ -125,10 +125,16 @@ export default function FinancePage() {
     () => computeRunningSaldo(items.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
     [items]
   );
+  const bukaPuasaRows = useMemo(() => computeRunningSaldo(items.filter((t) => isBukaPuasa(t))), [items]);
 
   const isRekap = activeTab === "Rekapitulasi";
   const isLaporan = activeTab === "Laporan";
-  const isMultiJenis = isRekap || activeTab === "Qurban" || activeTab === "Donasi" || activeTab === "Ramadhan";
+  const isMultiJenis =
+    isRekap ||
+    activeTab === "Qurban" ||
+    activeTab === "Donasi" ||
+    activeTab === "Ramadhan" ||
+    activeTab === "Buka Puasa";
 
   const currentRows: TransactionWithSaldo[] = isRekap
     ? combinedRows
@@ -138,6 +144,8 @@ export default function FinancePage() {
     ? donasiRows
     : activeTab === "Ramadhan"
     ? ramadhanRows
+    : activeTab === "Buka Puasa"
+    ? bukaPuasaRows
     : isLaporan
     ? []
     : byJenis[activeTab] ?? [];

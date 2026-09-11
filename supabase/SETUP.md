@@ -62,6 +62,13 @@ Kalau kamu sudah pernah menjalankan migrasi (1)-(5) dan sekarang cuma perlu mena
 6. [`migration_006_foto_barang.sql`](./migration_006_foto_barang.sql) — tambah kolom
    `foto_url` pada `inventory_items`.
 
+Kalau kamu sudah pernah menjalankan migrasi (1)-(6) dan sekarang perlu menambahkan
+**Kriteria "Infaq Buka Puasa"** (+ tab Buka Puasa di Keuangan), jalankan:
+
+7. [`migration_007_infaq_buka_puasa.sql`](./migration_007_infaq_buka_puasa.sql) — tambah
+   nilai enum `financial_kriteria` baru. **Jalankan file ini sendirian** (Run terpisah,
+   tidak digabung query lain).
+
 Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,

@@ -85,6 +85,7 @@ function guessKriteria(uraian: string): FinancialKriteria {
   if (u.includes("ADM") || u.includes("BIAYA")) return "Admin";
   if (u.includes("GAJI")) return "Gaji";
   if (u.includes("QURBAN") || u.includes("PENGQURBAN")) return "Qurban";
+  if (u.includes("BUKA PUASA")) return "Infaq Buka Puasa";
   if (u.includes("RAMADHAN")) return "Ramadhan";
   if (u.includes("DONASI")) return "Donasi";
   if (u.includes("TRF") || u.includes("TRANSFER") || u.includes("BIFAST")) return "Transfer";

@@ -65,6 +65,7 @@ const emptyForm = {
 type DisposalStep = null | "choose" | "hibah" | "hapus";
 
 const emptyDisposalForm = {
+  jumlah: "1",
   hibah_kepada: "",
   alasan_hapus: "",
   tanggal: new Date().toISOString().slice(0, 10),
@@ -277,7 +278,7 @@ export default function InventoryPage() {
   const openDisposal = (item: InventoryItem) => {
     setDisposalItem(item);
     setDisposalStep("choose");
-    setDisposalForm(emptyDisposalForm);
+    setDisposalForm({ ...emptyDisposalForm, jumlah: String(item.jumlah) });
     setDisposalFoto(null);
     setDisposalError(null);
   };
@@ -316,6 +317,16 @@ export default function InventoryPage() {
       return;
     }
 
+    const jumlahDisposal = Number(disposalForm.jumlah);
+    if (!Number.isInteger(jumlahDisposal) || jumlahDisposal < 1) {
+      setDisposalError("Jumlah yang dihibahkan/dihapuskan minimal 1.");
+      return;
+    }
+    if (jumlahDisposal > disposalItem.jumlah) {
+      setDisposalError(`Jumlah melebihi stok yang ada (${disposalItem.jumlah}).`);
+      return;
+    }
+
     setDisposalSaving(true);
 
     let fotoUrl: string | null = null;
@@ -337,7 +348,7 @@ export default function InventoryPage() {
       kode_barang: disposalItem.kode_barang,
       nama_barang: disposalItem.nama_barang,
       kategori_kode: disposalItem.kategori_kode,
-      jumlah: disposalItem.jumlah,
+      jumlah: jumlahDisposal,
       nilai: disposalItem.nilai,
       kondisi: disposalItem.kondisi,
       lokasi: disposalItem.lokasi,
@@ -354,11 +365,18 @@ export default function InventoryPage() {
 
     if (insertError) {
       setDisposalSaving(false);
-      setDisposalError("Gagal menyimpan riwayat. Barang tidak dihapus.");
+      setDisposalError("Gagal menyimpan riwayat. Barang tidak diubah.");
       return;
     }
 
-    await supabase.from("inventory_items").delete().eq("id", disposalItem.id);
+    const sisaJumlah = disposalItem.jumlah - jumlahDisposal;
+    if (sisaJumlah <= 0) {
+      // Seluruh stok dikeluarkan -- barang dihapus dari daftar aktif.
+      await supabase.from("inventory_items").delete().eq("id", disposalItem.id);
+    } else {
+      // Sebagian stok dikeluarkan -- barang tetap aktif dengan jumlah dikurangi.
+      await supabase.from("inventory_items").update({ jumlah: sisaJumlah }).eq("id", disposalItem.id);
+    }
 
     setDisposalSaving(false);
     closeDisposal();
@@ -696,8 +714,9 @@ export default function InventoryPage() {
           <div className="card max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-lg font-bold text-primary-900 mb-1">Keluarkan Barang</h3>
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-medium text-gray-700">{disposalItem.nama_barang}</span> ({disposalItem.kode_barang}) akan
-              dikeluarkan dari daftar barang aktif. Pilih jenis penghapusan:
+              <span className="font-medium text-gray-700">{disposalItem.nama_barang}</span> ({disposalItem.kode_barang},
+              stok {disposalItem.jumlah}). Kamu bisa memilih sebagian atau seluruh stok pada langkah berikutnya. Pilih
+              jenis penghapusan:
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button className="btn-gold" onClick={() => setDisposalStep("hibah")}>
@@ -722,6 +741,23 @@ export default function InventoryPage() {
             <p className="text-sm text-gray-500">
               {disposalItem.nama_barang} ({disposalItem.kode_barang})
             </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Jumlah Stok</label>
+                <input className="input bg-gray-50" value={disposalItem.jumlah} disabled />
+              </div>
+              <div>
+                <label className="label">Jumlah Dihibahkan</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={disposalItem.jumlah}
+                  className="input"
+                  value={disposalForm.jumlah}
+                  onChange={(e) => setDisposalForm({ ...disposalForm, jumlah: e.target.value })}
+                />
+              </div>
+            </div>
             <div>
               <label className="label">Hibah Kepada</label>
               <input
@@ -773,6 +809,23 @@ export default function InventoryPage() {
             <p className="text-sm text-gray-500">
               {disposalItem.nama_barang} ({disposalItem.kode_barang})
             </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Jumlah Stok</label>
+                <input className="input bg-gray-50" value={disposalItem.jumlah} disabled />
+              </div>
+              <div>
+                <label className="label">Jumlah Dihapuskan</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={disposalItem.jumlah}
+                  className="input"
+                  value={disposalForm.jumlah}
+                  onChange={(e) => setDisposalForm({ ...disposalForm, jumlah: e.target.value })}
+                />
+              </div>
+            </div>
             <div>
               <label className="label">Alasan Hapus</label>
               <textarea
