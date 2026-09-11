@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { parseBriStatement, parseBsiStatement, splitDuplicates } from "../../lib/bankStatement";
 import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
 import { isBukaPuasa, KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
+import { datetimeLocalToWitaIso, formatWita, nowWitaDatetimeLocal, toWitaDatetimeLocal } from "../../lib/waktu";
 import LaporanKeuanganTab from "./LaporanKeuanganTab";
 import {
   DraftTransaction,
@@ -36,14 +37,7 @@ function formatRupiah(n: number) {
 }
 
 function formatTanggal(t: string | null) {
-  if (!t) return "-";
-  return new Date(t).toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatWita(t, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 type ActiveTab = FinancialJenis | "Rekapitulasi" | "Qurban" | "Donasi" | "Ramadhan" | "Buka Puasa" | "Laporan";
@@ -52,7 +46,7 @@ const PAGE_SIZES = [25, 50, 100] as const;
 
 const emptyManualForm = {
   jenis: "UP Tunai" as FinancialJenis,
-  tanggal: new Date().toISOString().slice(0, 16),
+  tanggal: nowWitaDatetimeLocal(),
   periode: "Pekan 1",
   kriteria: "Lainnya" as FinancialKriteria,
   debet: "",
@@ -83,7 +77,9 @@ export default function FinancePage() {
 
   // -- inline edit existing row --
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ kriteria: FinancialKriteria; keterangan: string } | null>(null);
+  const [editForm, setEditForm] = useState<{ tanggal: string; kriteria: FinancialKriteria; keterangan: string } | null>(
+    null
+  );
 
   // -- pilih banyak untuk hapus massal --
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -278,7 +274,7 @@ export default function FinancePage() {
     if (!uploadJenis || drafts.length === 0) return;
     setSubmitting(true);
     const rows = drafts.map((d) => ({
-      tanggal: d.tanggal,
+      tanggal: datetimeLocalToWitaIso(d.tanggal),
       periode: draftPeriode,
       uraian: d.uraian,
       kriteria: d.kriteria,
@@ -312,7 +308,7 @@ export default function FinancePage() {
     setSubmitting(true);
     const isSaldoAwal = showManual === "saldo_awal";
     const { error } = await supabase.from("financial_transactions").insert({
-      tanggal: manualForm.tanggal || null,
+      tanggal: datetimeLocalToWitaIso(manualForm.tanggal),
       periode: manualForm.periode,
       uraian: null,
       kriteria: isSaldoAwal ? "Saldo Awal" : manualForm.kriteria,
@@ -334,13 +330,21 @@ export default function FinancePage() {
 
   const startEdit = (row: FinancialTransaction) => {
     setEditingId(row.id);
-    setEditForm({ kriteria: row.kriteria, keterangan: row.keterangan ?? "" });
+    setEditForm({
+      tanggal: toWitaDatetimeLocal(row.tanggal),
+      kriteria: row.kriteria,
+      keterangan: row.keterangan ?? "",
+    });
   };
   const saveEdit = async (id: string) => {
     if (!editForm) return;
     await supabase
       .from("financial_transactions")
-      .update({ kriteria: editForm.kriteria, keterangan: editForm.keterangan })
+      .update({
+        tanggal: datetimeLocalToWitaIso(editForm.tanggal),
+        kriteria: editForm.kriteria,
+        keterangan: editForm.keterangan,
+      })
       .eq("id", id);
     setEditingId(null);
     load();
@@ -705,7 +709,16 @@ export default function FinancePage() {
                     </td>
                   )}
                   <td className="py-2 pr-3 truncate" title={formatTanggal(t.tanggal)}>
-                    {formatTanggal(t.tanggal)}
+                    {editingId === t.id ? (
+                      <input
+                        type="datetime-local"
+                        className="input !text-xs !py-1 !w-40"
+                        value={editForm?.tanggal}
+                        onChange={(e) => setEditForm((f) => (f ? { ...f, tanggal: e.target.value } : f))}
+                      />
+                    ) : (
+                      formatTanggal(t.tanggal)
+                    )}
                   </td>
                   {isMultiJenis && (
                     <td className="py-2 pr-3 whitespace-nowrap">

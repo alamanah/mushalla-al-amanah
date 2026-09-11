@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { DraftTransaction, FinancialKriteria } from "../types";
+import { datetimeLocalToWitaIso, naiveWitaDatetime, toWitaDatetimeLocal } from "./waktu";
 
 function readFileRows(file: File): Promise<unknown[][]> {
   return new Promise((resolve, reject) => {
@@ -42,20 +43,29 @@ function parseAmount(raw: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-function toLocalDatetimeString(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
-    d.getMinutes()
-  )}:${pad(d.getSeconds())}`;
+/** Ambil komponen tanggal/jam mentah dari teks "YYYY-MM-DD HH:mm[:ss]" (atau
+ * dengan "T") TANPA lewat `new Date()`, supaya tidak tergantung zona waktu
+ * perangkat yang membuka halaman upload -- jam di rekening koran BRI selalu
+ * dianggap jam WITA apa adanya. */
+function parseIsoLikeComponents(
+  raw: string
+): { y: number; mo: number; d: number; h: number; mi: number; s: number } | null {
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s] = m;
+  return { y: Number(y), mo: Number(mo), d: Number(d), h: Number(h), mi: Number(mi), s: Number(s ?? "0") };
 }
 
-/** Ambil "YYYY-MM-DDTHH:mm" dari string tanggal apapun formatnya (dengan/tanpa
- * detik atau zona waktu), supaya perbandingan duplikat tidak terpengaruh
- * perbedaan format penyimpanan antara draft upload dan data di database. */
-function minuteKey(tanggal: string | null | undefined): string {
+/** Ambil "YYYY-MM-DDTHH:mm" (jam WITA) dari string tanggal apapun formatnya --
+ * naive (draft upload, dianggap WITA) maupun ber-offset (sudah tersimpan di
+ * database) -- supaya perbandingan duplikat tidak terpengaruh perbedaan
+ * format penyimpanan antara draft upload dan data di database. */
+function minuteKey(tanggal: string | null | undefined, isNaiveWita: boolean): string {
   if (!tanggal) return "";
-  const m = tanggal.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/);
-  return m ? `${m[1]}T${m[2]}:${m[3]}` : tanggal;
+  const iso = isNaiveWita ? datetimeLocalToWitaIso(tanggal.slice(0, 16)) : tanggal;
+  if (!iso) return "";
+  const local = toWitaDatetimeLocal(iso);
+  return local || tanggal;
 }
 
 /**
@@ -69,10 +79,10 @@ export function splitDuplicates(
   existing: { tanggal: string | null; debet: number; kredit: number }[]
 ): { unique: DraftTransaction[]; duplicateCount: number } {
   const existingKeys = new Set(
-    existing.map((e) => `${minuteKey(e.tanggal)}|${Number(e.debet)}|${Number(e.kredit)}`)
+    existing.map((e) => `${minuteKey(e.tanggal, false)}|${Number(e.debet)}|${Number(e.kredit)}`)
   );
   const unique = drafts.filter(
-    (d) => !existingKeys.has(`${minuteKey(d.tanggal)}|${Number(d.debet)}|${Number(d.kredit)}`)
+    (d) => !existingKeys.has(`${minuteKey(d.tanggal, true)}|${Number(d.debet)}|${Number(d.kredit)}`)
   );
   return { unique, duplicateCount: drafts.length - unique.length };
 }
@@ -111,11 +121,11 @@ export async function parseBriStatement(file: File): Promise<DraftTransaction[]>
     const debet = parseAmount(cell(row, 9)); // Kolom J -> Debet
     const kredit = parseAmount(cell(row, 8)); // Kolom I -> Kredit
 
-    const d = new Date(tglRaw.replace(" ", "T"));
-    if (isNaN(d.getTime())) continue;
+    const comp = parseIsoLikeComponents(tglRaw);
+    if (!comp) continue;
 
     out.push({
-      tanggal: toLocalDatetimeString(d),
+      tanggal: naiveWitaDatetime(comp.y, comp.mo, comp.d, comp.h, comp.mi, comp.s),
       uraian,
       kriteria: guessKriteria(uraian),
       debet,
@@ -150,10 +160,9 @@ export async function parseBsiStatement(file: File): Promise<DraftTransaction[]>
     const m = waktuRaw.match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2})\.(\d{2})/);
     if (!m) continue;
     const [, dd, mm, yyyy, hh, min] = m;
-    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min));
 
     out.push({
-      tanggal: toLocalDatetimeString(d),
+      tanggal: naiveWitaDatetime(Number(yyyy), Number(mm), Number(dd), Number(hh), Number(min)),
       uraian,
       kriteria: guessKriteria(uraian),
       debet,

@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { FINANCIAL_JENIS, FINANCIAL_KRITERIA, FinancialJenis, FinancialKriteria } from "../../types";
+import { datetimeLocalToWitaIso, nowWitaDatetimeLocal } from "../../lib/waktu";
 
 const emptyForm = {
   jenis: "UP Tunai" as FinancialJenis,
-  tanggal: new Date().toISOString().slice(0, 16),
+  tanggal: nowWitaDatetimeLocal(),
   periode: "Pekan 1",
   kriteria: "Lainnya" as FinancialKriteria,
   debet: "",
@@ -47,7 +48,7 @@ export default function RekamTransaksi() {
     const isSaldoAwal = mode === "saldo_awal";
     setSaving(true);
     const { error: err } = await supabase.from("financial_transactions").insert({
-      tanggal: form.tanggal || null,
+      tanggal: datetimeLocalToWitaIso(form.tanggal),
       periode: form.periode,
       uraian: null,
       kriteria: isSaldoAwal ? "Saldo Awal" : form.kriteria,
@@ -64,7 +65,10 @@ export default function RekamTransaksi() {
     }
     setSavedInfo("Transaksi tersimpan.");
     // Reset tapi pertahankan Jenis & Periode supaya input berikutnya lebih cepat.
-    setForm((f) => ({ ...emptyForm, jenis: f.jenis, periode: f.periode }));
+    // Tanggal diisi ulang dengan waktu WITA saat ini (bukan yang dibekukan
+    // saat halaman pertama dibuka), penting karena halaman ini dipakai untuk
+    // input berulang-ulang.
+    setForm((f) => ({ ...emptyForm, tanggal: nowWitaDatetimeLocal(), jenis: f.jenis, periode: f.periode }));
   };
 
   return (
