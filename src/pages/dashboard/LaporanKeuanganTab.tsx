@@ -6,11 +6,6 @@ function formatRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 }
 
-function formatTanggalPanjang(t: string | null) {
-  if (!t) return "-";
-  return new Date(t).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-}
-
 export default function LaporanKeuanganTab({ items }: { items: FinancialTransaction[] }) {
   const periodeOptions = useMemo(() => listPeriodeOptions(items), [items]);
   const [periode, setPeriode] = useState<string>(periodeOptions[0] ?? "");
@@ -164,9 +159,12 @@ export default function LaporanKeuanganTab({ items }: { items: FinancialTransact
               </table>
             </div>
 
-            <p className="text-xs text-gray-400 italic text-center">
-              *data per {formatTanggalPanjang(laporan.tanggalTerakhir)}
-            </p>
+            <div className="pt-2 border-t border-gray-100 text-sm text-gray-600">
+              <p className="font-medium text-gray-700 mb-1">Informasi tambahan:</p>
+              <ol className="list-decimal list-inside space-y-0.5">
+                <li>Infaq Buka Puasa: {formatRupiah(laporan.totalBukaPuasa)}</li>
+              </ol>
+            </div>
           </div>
         </div>
       )}

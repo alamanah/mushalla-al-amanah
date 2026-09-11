@@ -43,6 +43,13 @@ export default function FinancialReport() {
   const rowsAll = isRekap ? combinedRows : byJenis[activeTab] ?? [];
   const saldoTerkini = rowsAll.length > 0 ? rowsAll[rowsAll.length - 1].saldo : 0;
 
+  // Kas UP Tunai kebalikan dari rekening bank: uang masuk ke kas dicatat
+  // sebagai Kredit, jadi KHUSUS tampilan tab UP Tunai (dan kontribusinya ke
+  // Saldo Gabungan), Debet/Kredit & Saldo ditukar/dibalik supaya saldo kas
+  // terlihat positif seperti semestinya. Data di database tidak berubah.
+  const isUpTunaiTab = activeTab === "UP Tunai";
+  const displaySaldoTerkini = isUpTunaiTab ? -saldoTerkini : saldoTerkini;
+
   const rowsBulanIni = useMemo(
     () => rowsAll.filter((t) => t.tanggal && t.tanggal.startsWith(month)),
     [rowsAll, month]
@@ -52,10 +59,14 @@ export default function FinancialReport() {
     const kredit = rowsBulanIni.reduce((a, b) => a + Number(b.kredit), 0);
     return { debet, kredit, selisih: debet - kredit };
   }, [rowsBulanIni]);
+  const displayTotals = isUpTunaiTab
+    ? { pemasukan: totals.kredit, pengeluaran: totals.debet }
+    : { pemasukan: totals.debet, pengeluaran: totals.kredit };
 
   const saldoGabungan = FINANCIAL_JENIS.reduce((sum, j) => {
     const rows = byJenis[j] ?? [];
-    return sum + (rows.length > 0 ? rows[rows.length - 1].saldo : 0);
+    const jenisSaldo = rows.length > 0 ? rows[rows.length - 1].saldo : 0;
+    return sum + (j === "UP Tunai" ? -jenisSaldo : jenisSaldo);
   }, 0);
 
   return (
@@ -92,15 +103,15 @@ export default function FinancialReport() {
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <div className="card">
           <p className="text-xs text-gray-500">Pemasukan Bulan Ini ({activeTab})</p>
-          <p className="text-xl font-bold text-primary-700">{formatRupiah(totals.debet)}</p>
+          <p className="text-xl font-bold text-primary-700">{formatRupiah(displayTotals.pemasukan)}</p>
         </div>
         <div className="card">
           <p className="text-xs text-gray-500">Pengeluaran Bulan Ini ({activeTab})</p>
-          <p className="text-xl font-bold text-red-600">{formatRupiah(totals.kredit)}</p>
+          <p className="text-xl font-bold text-red-600">{formatRupiah(displayTotals.pengeluaran)}</p>
         </div>
         <div className="card">
           <p className="text-xs text-gray-500">{isRekap ? "Saldo Gabungan Saat Ini" : `Saldo ${activeTab} Saat Ini`}</p>
-          <p className="text-xl font-bold text-gold-600">{formatRupiah(saldoTerkini)}</p>
+          <p className="text-xl font-bold text-gold-600">{formatRupiah(displaySaldoTerkini)}</p>
         </div>
       </div>
 
@@ -113,7 +124,7 @@ export default function FinancialReport() {
           <table className="w-full text-sm table-fixed">
             <colgroup>
               <col className="w-28" />
-              {isRekap && <col className="w-16" />}
+              {isRekap && <col className="w-32" />}
               <col className="w-28" />
               <col />
               <col className="w-28" />
@@ -144,13 +155,22 @@ export default function FinancialReport() {
                   <td className="py-2 pr-4 text-gray-500 truncate" title={t.keterangan ?? undefined}>
                     {t.keterangan}
                   </td>
-                  <td className="py-2 pr-4 text-right text-primary-700 truncate">
-                    {t.debet > 0 ? formatRupiah(t.debet) : ""}
-                  </td>
-                  <td className="py-2 pr-4 text-right text-red-600 truncate">
-                    {t.kredit > 0 ? formatRupiah(t.kredit) : ""}
-                  </td>
-                  <td className="py-2 pr-4 text-right font-medium truncate">{formatRupiah(t.saldo)}</td>
+                  {(() => {
+                    const dispDebet = isUpTunaiTab ? t.kredit : t.debet;
+                    const dispKredit = isUpTunaiTab ? t.debet : t.kredit;
+                    const dispSaldo = isUpTunaiTab ? -t.saldo : t.saldo;
+                    return (
+                      <>
+                        <td className="py-2 pr-4 text-right text-primary-700 truncate">
+                          {dispDebet > 0 ? formatRupiah(dispDebet) : ""}
+                        </td>
+                        <td className="py-2 pr-4 text-right text-red-600 truncate">
+                          {dispKredit > 0 ? formatRupiah(dispKredit) : ""}
+                        </td>
+                        <td className="py-2 pr-4 text-right font-medium truncate">{formatRupiah(dispSaldo)}</td>
+                      </>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>

@@ -54,6 +54,9 @@ export interface LaporanKeuanganResult {
   saldoAkhir: number;
   tanggalTerakhir: string | null;
   adaData: boolean;
+  /** Total Infaq Buka Puasa periode ini (dana khusus, di luar hitungan Saldo
+   * Awal/Akhir di atas) -- ditampilkan sebagai info tambahan di laporan. */
+  totalBukaPuasa: number;
 }
 
 /**
@@ -98,6 +101,10 @@ export function buildLaporanKeuangan(allItems: FinancialTransaction[], periode: 
   }, null);
   const tahun = tanggalTerakhir ? new Date(tanggalTerakhir).getFullYear() : new Date().getFullYear();
 
+  const totalBukaPuasa = allItems
+    .filter((t) => t.periode === periode && isBukaPuasa(t))
+    .reduce((sum, t) => sum + Number(t.debet) - Number(t.kredit), 0);
+
   return {
     periode,
     tahun,
@@ -109,6 +116,7 @@ export function buildLaporanKeuangan(allItems: FinancialTransaction[], periode: 
     saldoAkhir,
     tanggalTerakhir,
     adaData: rowsPeriode.length > 0,
+    totalBukaPuasa,
   };
 }
 

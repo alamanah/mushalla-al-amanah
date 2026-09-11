@@ -151,6 +151,14 @@ export default function FinancePage() {
     : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
 
+  // Kas UP Tunai kebalikan dari rekening bank (lihat catatan di updateDraft):
+  // uang masuk ke kas dicatat sebagai Kredit, jadi KHUSUS tampilan tab UP
+  // Tunai, Debet/Kredit & Saldo ditukar/dibalik supaya saldo kas terlihat
+  // positif seperti semestinya. Data di database TIDAK berubah, ini murni
+  // tampilan.
+  const isUpTunaiTab = activeTab === "UP Tunai";
+  const displaySaldoTerkini = isUpTunaiTab ? -saldoTerkini : saldoTerkini;
+
   const totalPages = Math.max(1, Math.ceil(currentRows.length / pageSize));
   const pageRows = currentRows.slice((page - 1) * pageSize, page * pageSize);
 
@@ -396,7 +404,7 @@ export default function FinancePage() {
                 <tr className="text-left text-gray-500 border-b">
                   <th className="py-1 pr-2">Tanggal</th>
                   <th className="py-1 pr-2">Uraian Asli</th>
-                  <th className="py-1 pr-2">Jenis</th>
+                  <th className="py-1 pr-2 whitespace-nowrap">Jenis</th>
                   <th className="py-1 pr-2">Kriteria</th>
                   <th className="py-1 pr-2 text-right">Debet</th>
                   <th className="py-1 pr-2 text-right">Kredit</th>
@@ -419,7 +427,7 @@ export default function FinancePage() {
                     <td className="py-1 pr-2 max-w-[220px] text-gray-500">{d.uraian}</td>
                     <td className="py-1 pr-2">
                       <select
-                        className="input !text-xs !py-1"
+                        className="input !text-xs !py-1 !w-40"
                         value={d.jenis}
                         onChange={(e) => updateDraft(idx, { jenis: e.target.value as FinancialJenis })}
                       >
@@ -616,7 +624,7 @@ export default function FinancePage() {
         <span className="text-sm text-gray-500">
           {isRekap ? "Saldo Gabungan (BRI + BSI + UP Tunai) saat ini" : `Saldo ${activeTab} saat ini`}
         </span>
-        <span className="text-xl font-bold text-primary-800">{formatRupiah(saldoTerkini)}</span>
+        <span className="text-xl font-bold text-primary-800">{formatRupiah(displaySaldoTerkini)}</span>
       </div>
 
       {canEdit && selectedIds.size > 0 && (
@@ -644,7 +652,7 @@ export default function FinancePage() {
             <colgroup>
               {canEdit && <col className="w-8" />}
               <col className="w-36" />
-              {isMultiJenis && <col className="w-20" />}
+              {isMultiJenis && <col className="w-32" />}
               <col className="w-24" />
               <col className="w-32" />
               <col />
@@ -716,13 +724,22 @@ export default function FinancePage() {
                       t.keterangan
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-right text-primary-700 truncate">
-                    {t.debet > 0 ? formatRupiah(t.debet) : ""}
-                  </td>
-                  <td className="py-2 pr-3 text-right text-red-600 truncate">
-                    {t.kredit > 0 ? formatRupiah(t.kredit) : ""}
-                  </td>
-                  <td className="py-2 pr-3 text-right font-medium truncate">{formatRupiah(t.saldo)}</td>
+                  {(() => {
+                    const dispDebet = isUpTunaiTab ? t.kredit : t.debet;
+                    const dispKredit = isUpTunaiTab ? t.debet : t.kredit;
+                    const dispSaldo = isUpTunaiTab ? -t.saldo : t.saldo;
+                    return (
+                      <>
+                        <td className="py-2 pr-3 text-right text-primary-700 truncate">
+                          {dispDebet > 0 ? formatRupiah(dispDebet) : ""}
+                        </td>
+                        <td className="py-2 pr-3 text-right text-red-600 truncate">
+                          {dispKredit > 0 ? formatRupiah(dispKredit) : ""}
+                        </td>
+                        <td className="py-2 pr-3 text-right font-medium truncate">{formatRupiah(dispSaldo)}</td>
+                      </>
+                    );
+                  })()}
                   <td className="py-2 pr-3 whitespace-nowrap text-center">
                     {editingId === t.id ? (
                       <>
