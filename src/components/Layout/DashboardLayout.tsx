@@ -11,7 +11,7 @@ export default function DashboardLayout() {
     { to: "/dashboard/artikel", label: "Moderasi Artikel", show: isAdmin },
     { to: "/dashboard/keuangan", label: "Keuangan", show: isAdmin || hasRole("bendahara") },
     { to: "/dashboard/inventaris", label: "Inventaris", show: isAdmin || hasRole("inventaris") },
-    { to: "/dashboard/pengaturan", label: "Pengaturan Konten", show: isAdmin },
+    { to: "/dashboard/pengaturan", label: "Pengaturan Konten", show: isAdmin || hasRole("humas") },
   ];
 
   const handleLogout = async () => {
