@@ -49,6 +49,34 @@ function toLocalDatetimeString(d: Date): string {
   )}:${pad(d.getSeconds())}`;
 }
 
+/** Ambil "YYYY-MM-DDTHH:mm" dari string tanggal apapun formatnya (dengan/tanpa
+ * detik atau zona waktu), supaya perbandingan duplikat tidak terpengaruh
+ * perbedaan format penyimpanan antara draft upload dan data di database. */
+function minuteKey(tanggal: string | null | undefined): string {
+  if (!tanggal) return "";
+  const m = tanggal.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/);
+  return m ? `${m[1]}T${m[2]}:${m[3]}` : tanggal;
+}
+
+/**
+ * Buang baris draft yang tanggal (sampai menit) + debet + kredit-nya PERSIS
+ * sama dengan transaksi yang sudah ada di database -- kasus umum saat
+ * mengunggah rekening koran yang rentang tanggalnya tumpang tindih dengan
+ * unggahan sebelumnya.
+ */
+export function splitDuplicates(
+  drafts: DraftTransaction[],
+  existing: { tanggal: string | null; debet: number; kredit: number }[]
+): { unique: DraftTransaction[]; duplicateCount: number } {
+  const existingKeys = new Set(
+    existing.map((e) => `${minuteKey(e.tanggal)}|${Number(e.debet)}|${Number(e.kredit)}`)
+  );
+  const unique = drafts.filter(
+    (d) => !existingKeys.has(`${minuteKey(d.tanggal)}|${Number(d.debet)}|${Number(d.kredit)}`)
+  );
+  return { unique, duplicateCount: drafts.length - unique.length };
+}
+
 /** Tebak Kriteria dari teks uraian, supaya bendahara tinggal koreksi bukan isi dari nol. */
 function guessKriteria(uraian: string): FinancialKriteria {
   const u = uraian.toUpperCase();

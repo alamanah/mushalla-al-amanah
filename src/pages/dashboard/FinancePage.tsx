@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
-import { parseBriStatement, parseBsiStatement } from "../../lib/bankStatement";
+import { parseBriStatement, parseBsiStatement, splitDuplicates } from "../../lib/bankStatement";
 import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
 import { KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
 import LaporanKeuanganTab from "./LaporanKeuanganTab";
@@ -73,6 +73,7 @@ export default function FinancePage() {
   const [drafts, setDrafts] = useState<DraftTransaction[]>([]);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [skippedInfo, setSkippedInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,12 +200,20 @@ export default function FinancePage() {
     if (!file || !uploadJenis) return;
     setParsing(true);
     setParseError(null);
+    setSkippedInfo(null);
     try {
       const parsed = uploadJenis === "BRI" ? await parseBriStatement(file) : await parseBsiStatement(file);
       if (parsed.length === 0) {
         setParseError("Tidak ada baris transaksi yang terbaca dari file ini. Pastikan formatnya sesuai.");
       }
-      setDrafts(parsed);
+      const existingForJenis = items.filter((it) => it.jenis === uploadJenis);
+      const { unique, duplicateCount } = splitDuplicates(parsed, existingForJenis);
+      if (duplicateCount > 0) {
+        setSkippedInfo(
+          `${duplicateCount} baris dilewati otomatis karena tanggal & nominalnya persis sama dengan transaksi ${uploadJenis} yang sudah ada di database (kemungkinan tumpang tindih dengan unggahan sebelumnya).`
+        );
+      }
+      setDrafts(unique);
     } catch (err) {
       setParseError("Gagal membaca file: " + (err as Error).message);
     }
@@ -240,6 +249,7 @@ export default function FinancePage() {
     }
     setDrafts([]);
     setUploadJenis(null);
+    setSkippedInfo(null);
     load();
   };
 
@@ -247,6 +257,7 @@ export default function FinancePage() {
     setDrafts([]);
     setUploadJenis(null);
     setParseError(null);
+    setSkippedInfo(null);
   };
 
   const submitManual = async (e: FormEvent) => {
@@ -329,6 +340,7 @@ export default function FinancePage() {
           />
           {parsing && <p className="text-sm text-gray-400 mt-2">Membaca file...</p>}
           {parseError && <p className="text-sm text-red-600 mt-2">{parseError}</p>}
+          {skippedInfo && <p className="text-sm text-primary-700 mt-2">ℹ️ {skippedInfo}</p>}
         </div>
       )}
 

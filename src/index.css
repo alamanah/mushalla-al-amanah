@@ -37,3 +37,23 @@ body {
 .badge {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
 }
+
+/* Cetak/Unduh PDF: sembunyikan semua elemen lain, tampilkan hanya area
+   yang ditandai .print-area (lihat LaporanKeuanganTab.tsx). Diaktifkan
+   dengan menambahkan class "printing" ke <body> sebelum window.print(). */
+@media print {
+  body.printing * {
+    visibility: hidden;
+  }
+  body.printing .print-area,
+  body.printing .print-area * {
+    visibility: visible;
+  }
+  body.printing .print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
