@@ -16,8 +16,9 @@ export default function Landing() {
           <h1 className="font-serif text-3xl sm:text-4xl font-bold mb-3">Mushalla Al Amanah</h1>
           <p className="text-white/80">GKN I Denpasar</p>
           <p className="max-w-xl mx-auto mt-4 text-white/80 text-sm sm:text-base">
-            Melayani jamaah dengan jadwal shalat, kajian rutin, transparansi keuangan, dan bacaan
-            Islami untuk warga GKN I Denpasar dan sekitarnya.
+            Menjadi rumah ibadah yang menghidupkan syiar Islam bagi warga GKN I Denpasar dan
+            sekitarnya — lewat jadwal shalat yang selalu terkini, kajian rutin yang menyejukkan
+            hati, keuangan yang transparan, dan bacaan Islami yang mencerahkan.
           </p>
           {!user && (
             <div className="mt-6 flex justify-center gap-3">

@@ -125,18 +125,88 @@ create table if not exists public.financial_transactions (
   created_at timestamptz not null default now()
 );
 
+-- Kategori barang inventaris -- kode dipakai sebagai awalan Kode Barang
+-- (mis. "1000.0001"). last_seq HANYA bertambah, tidak pernah berkurang --
+-- termasuk saat barang dihibahkan/dihapus -- supaya Kode Barang tidak pernah
+-- dipakai ulang (lihat fungsi next_inventory_code di bawah).
+create table if not exists public.inventory_categories (
+  kode text primary key,
+  nama text not null,
+  sort_order int not null default 0,
+  last_seq int not null default 0
+);
+
+insert into public.inventory_categories (kode, nama, sort_order) values
+  ('1000', 'Barang Perabot', 1),
+  ('2000', 'Barang Elektronik', 2),
+  ('3000', 'Barang Persediaan', 3),
+  ('9000', 'Barang Lainnya', 4)
+on conflict (kode) do nothing;
+
 create table if not exists public.inventory_items (
   id uuid primary key default gen_random_uuid(),
+  kode_barang text not null unique,
   nama_barang text not null,
-  kategori text,
+  kategori_kode text not null references public.inventory_categories (kode),
   jumlah int not null default 1,
+  nilai numeric(14, 2) not null default 0,
   kondisi text,
   lokasi text,
-  tanggal_perolehan date,
-  catatan text,
+  tahun_perolehan int,
   created_by uuid references public.profiles (id) on delete set null,
+  created_by_name text, -- snapshot nama pencatat saat itu (supaya tetap tampil walau lintas role)
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Riwayat barang yang sudah dihibahkan/dihapus dari inventory_items --
+-- disimpan permanen (bukan hard delete) supaya Kode Barang lama tetap
+-- tercatat dan tidak bisa dipakai ulang, sekaligus jadi arsip dokumentasi.
+create table if not exists public.inventory_disposals (
+  id uuid primary key default gen_random_uuid(),
+  kode_barang text not null,
+  nama_barang text not null,
+  kategori_kode text not null,
+  jumlah int not null default 0,
+  nilai numeric(14, 2) not null default 0,
+  kondisi text,
+  lokasi text,
+  tahun_perolehan int,
+  tipe text not null check (tipe in ('hibah', 'hapus')),
+  hibah_kepada text, -- diisi kalau tipe = 'hibah'
+  alasan_hapus text, -- diisi kalau tipe = 'hapus'
+  tanggal date not null default current_date,
+  keterangan text,
+  foto_url text,
+  created_by uuid references public.profiles (id) on delete set null,
+  created_by_name text,
+  created_at timestamptz not null default now()
+);
+
+-- Ambil Kode Barang berikutnya untuk sebuah kategori secara atomik (aman
+-- dari race condition saat 2 pengguna input barang bersamaan).
+create or replace function public.next_inventory_code(p_kategori_kode text)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_seq int;
+begin
+  update public.inventory_categories
+  set last_seq = last_seq + 1
+  where kode = p_kategori_kode
+  returning last_seq into v_seq;
+
+  if v_seq is null then
+    raise exception 'Kategori inventaris tidak ditemukan: %', p_kategori_kode;
+  end if;
+
+  return p_kategori_kode || '.' || lpad(v_seq::text, 4, '0');
+end;
+$$;
+
+grant execute on function public.next_inventory_code(text) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 4b. REFERENSI (daftar ustadz -- untuk rujukan internal pengurus)
@@ -230,7 +300,9 @@ alter table public.infaq_info enable row level security;
 alter table public.social_links enable row level security;
 alter table public.about_content enable row level security;
 alter table public.financial_transactions enable row level security;
+alter table public.inventory_categories enable row level security;
 alter table public.inventory_items enable row level security;
+alter table public.inventory_disposals enable row level security;
 alter table public.articles enable row level security;
 alter table public.ustadz enable row level security;
 
@@ -339,6 +411,10 @@ create policy "finance_write_bendahara" on public.financial_transactions for all
   with check (public.has_role(auth.uid(), 'bendahara'));
 
 -- inventaris: dibaca admin & inventaris (bukan konsumsi publik); tulis HANYA inventaris
+drop policy if exists "inventory_categories_read_inventaris_admin" on public.inventory_categories;
+create policy "inventory_categories_read_inventaris_admin" on public.inventory_categories for select
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'inventaris'));
+
 drop policy if exists "inventory_read_inventaris_admin" on public.inventory_items;
 create policy "inventory_read_inventaris_admin" on public.inventory_items for select
   using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'inventaris'));
@@ -346,6 +422,13 @@ drop policy if exists "inventory_write_inventaris_admin" on public.inventory_ite
 drop policy if exists "inventory_write_inventaris" on public.inventory_items;
 create policy "inventory_write_inventaris" on public.inventory_items for all
   using (public.has_role(auth.uid(), 'inventaris'))
+  with check (public.has_role(auth.uid(), 'inventaris'));
+
+drop policy if exists "inventory_disposals_read_inventaris_admin" on public.inventory_disposals;
+create policy "inventory_disposals_read_inventaris_admin" on public.inventory_disposals for select
+  using (public.is_admin(auth.uid()) or public.has_role(auth.uid(), 'inventaris'));
+drop policy if exists "inventory_disposals_write_inventaris" on public.inventory_disposals;
+create policy "inventory_disposals_write_inventaris" on public.inventory_disposals for insert
   with check (public.has_role(auth.uid(), 'inventaris'));
 
 -- referensi ustadz: khusus halaman dashboard admin (bukan konsumsi publik)

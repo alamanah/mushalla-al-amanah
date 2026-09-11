@@ -49,6 +49,13 @@ menambahkan fitur **foto profil**, jalankan juga:
 4. [`migration_004_avatar.sql`](./migration_004_avatar.sql) — tambah kolom `avatar_url`
    pada `profiles` + izin storage supaya tiap user bisa unggah foto profilnya sendiri.
 
+Kalau kamu sudah pernah menjalankan migrasi (1)-(4) dan sekarang perlu update **struktur
+Inventaris** (Kode Barang otomatis, Nilai, Tahun Perolehan, riwayat Hibah/Hapus), jalankan:
+
+5. [`migration_005_inventaris.sql`](./migration_005_inventaris.sql) — barang inventaris lama
+   (kalau ada) otomatis dipetakan ke kategori "Barang Lainnya" (9000) dengan Kode Barang
+   baru; silakan koreksi Kategori-nya manual lewat Dashboard → Inventaris setelah migrasi.
+
 Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,

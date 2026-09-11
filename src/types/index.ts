@@ -129,17 +129,50 @@ export interface DraftTransaction {
   keterangan: string;
 }
 
+export interface InventoryCategory {
+  kode: string; // "1000", "2000", "3000", "9000"
+  nama: string;
+  sort_order: number;
+  last_seq: number;
+}
+
 export interface InventoryItem {
   id: string;
+  kode_barang: string; // mis. "1000.0001", tidak pernah dipakai ulang
   nama_barang: string;
-  kategori: string | null;
+  kategori_kode: string;
   jumlah: number;
+  nilai: number;
   kondisi: string | null;
   lokasi: string | null;
-  tanggal_perolehan: string | null;
-  catatan: string | null;
+  tahun_perolehan: number | null;
   created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
   updated_at: string;
+}
+
+export type InventoryDisposalTipe = "hibah" | "hapus";
+
+export interface InventoryDisposal {
+  id: string;
+  kode_barang: string;
+  nama_barang: string;
+  kategori_kode: string;
+  jumlah: number;
+  nilai: number;
+  kondisi: string | null;
+  lokasi: string | null;
+  tahun_perolehan: number | null;
+  tipe: InventoryDisposalTipe;
+  hibah_kepada: string | null;
+  alasan_hapus: string | null;
+  tanggal: string;
+  keterangan: string | null;
+  foto_url: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
 }
 
 export interface Ustadz {
