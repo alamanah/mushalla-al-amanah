@@ -229,7 +229,21 @@ export default function FinancePage() {
   };
 
   const updateDraft = (idx: number, patch: Partial<DraftTransaction>) => {
-    setDrafts((ds) => ds.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+    setDrafts((ds) =>
+      ds.map((d, i) => {
+        if (i !== idx) return d;
+        const next = { ...d, ...patch };
+        // Jenis UP Tunai kebalikan dari rekening bank: transfer yang di rekening
+        // asal tercatat Kredit (uang keluar) berarti Debet (uang masuk) di UP
+        // Tunai, begitu juga sebaliknya -- jadi saat baris dipindah dari/ke
+        // Jenis "UP Tunai", Debet & Kredit-nya otomatis ditukar.
+        if (patch.jenis && (patch.jenis === "UP Tunai") !== (d.jenis === "UP Tunai")) {
+          next.debet = d.kredit;
+          next.kredit = d.debet;
+        }
+        return next;
+      })
+    );
   };
   const removeDraft = (idx: number) => {
     setDrafts((ds) => ds.filter((_, i) => i !== idx));

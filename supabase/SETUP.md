@@ -69,6 +69,14 @@ Kalau kamu sudah pernah menjalankan migrasi (1)-(6) dan sekarang perlu menambahk
    nilai enum `financial_kriteria` baru. **Jalankan file ini sendirian** (Run terpisah,
    tidak digabung query lain).
 
+Kalau kamu sudah pernah menjalankan migrasi (1)-(7) dan sekarang perlu menambahkan
+**Jenis rekening "Infaq Buka Puasa"** + **Kriteria "Setor UP Tunai" & "Terima UP
+Tunai"**, jalankan:
+
+8. [`migration_008_up_tunai_buka_puasa.sql`](./migration_008_up_tunai_buka_puasa.sql) —
+   tambah nilai enum `financial_jenis` & `financial_kriteria` baru. **Jalankan file ini
+   sendirian** (Run terpisah, tidak digabung query lain).
+
 Migrasi (1) & (2) ini akan:
 - Menambah role **humas** (bisa mengelola jadwal kajian, infaq, sosmed, tentang mushalla).
 - Merombak tabel `financial_transactions` ke struktur baru: **Periode, Kriteria, Debet,

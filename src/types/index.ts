@@ -68,9 +68,9 @@ export interface AboutContent {
   updated_at: string;
 }
 
-export type FinancialJenis = "BRI" | "BSI" | "UP Tunai";
+export type FinancialJenis = "BRI" | "BSI" | "UP Tunai" | "Infaq Buka Puasa";
 
-export const FINANCIAL_JENIS: FinancialJenis[] = ["BRI", "BSI", "UP Tunai"];
+export const FINANCIAL_JENIS: FinancialJenis[] = ["BRI", "BSI", "UP Tunai", "Infaq Buka Puasa"];
 
 export type FinancialKriteria =
   | "Saldo Awal"
@@ -87,7 +87,9 @@ export type FinancialKriteria =
   | "Dana Pengqurban"
   | "Qurban"
   | "Donasi"
-  | "Infaq Buka Puasa";
+  | "Infaq Buka Puasa"
+  | "Setor UP Tunai"
+  | "Terima UP Tunai";
 
 export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
   "Saldo Awal",
@@ -105,6 +107,8 @@ export const FINANCIAL_KRITERIA: FinancialKriteria[] = [
   "Qurban",
   "Donasi",
   "Infaq Buka Puasa",
+  "Setor UP Tunai",
+  "Terima UP Tunai",
 ];
 
 export interface FinancialTransaction {

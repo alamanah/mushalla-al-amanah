@@ -21,14 +21,15 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type financial_jenis as enum ('BRI', 'BSI', 'UP Tunai');
+  create type financial_jenis as enum ('BRI', 'BSI', 'UP Tunai', 'Infaq Buka Puasa');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type financial_kriteria as enum (
     'Saldo Awal', 'Transfer', 'Setor Tunai Jumat', 'QRIS', 'Admin', 'Gaji',
     'Kegiatan Dakwah', 'Kegiatan Sosial', 'Kegiatan Sarpras', 'Lainnya',
-    'Ramadhan', 'Dana Pengqurban', 'Qurban', 'Donasi', 'Infaq Buka Puasa'
+    'Ramadhan', 'Dana Pengqurban', 'Qurban', 'Donasi', 'Infaq Buka Puasa',
+    'Setor UP Tunai', 'Terima UP Tunai'
   );
 exception when duplicate_object then null; end $$;
 
