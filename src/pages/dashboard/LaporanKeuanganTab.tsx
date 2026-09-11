@@ -97,7 +97,7 @@ export default function LaporanKeuanganTab({ items }: { items: FinancialTransact
                 </colgroup>
                 <thead>
                   <tr className="bg-primary-100 text-primary-900">
-                    <th className="py-2 pl-4 pr-2 text-left">#</th>
+                    <th className="py-2 pl-4 pr-2 text-left"></th>
                     <th className="py-2 px-2 text-left">Kriteria</th>
                     <th className="py-2 px-2 text-right">Jumlah</th>
                     <th className="py-2 pl-2 pr-4 text-left">Keterangan</th>
@@ -136,7 +136,7 @@ export default function LaporanKeuanganTab({ items }: { items: FinancialTransact
                 </colgroup>
                 <thead>
                   <tr className="bg-red-100 text-red-900">
-                    <th className="py-2 pl-4 pr-2 text-left">#</th>
+                    <th className="py-2 pl-4 pr-2 text-left"></th>
                     <th className="py-2 px-2 text-left">Kriteria</th>
                     <th className="py-2 px-2 text-right">Jumlah</th>
                     <th className="py-2 pl-2 pr-4 text-left">Keterangan</th>

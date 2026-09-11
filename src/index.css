@@ -42,12 +42,20 @@ body {
    yang ditandai .print-area (lihat LaporanKeuanganTab.tsx). Diaktifkan
    dengan menambahkan class "printing" ke <body> sebelum window.print(). */
 @media print {
+  html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
   body.printing * {
     visibility: hidden;
   }
   body.printing .print-area,
   body.printing .print-area * {
     visibility: visible;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
   body.printing .print-area {
     position: absolute;
