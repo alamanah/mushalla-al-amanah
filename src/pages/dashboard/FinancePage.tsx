@@ -169,12 +169,19 @@ export default function FinancePage() {
     : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
 
-  const totalPages = Math.max(1, Math.ceil(currentRows.length / pageSize));
-  const pageRows = currentRows.slice((page - 1) * pageSize, page * pageSize);
+  // Saldo berjalan dihitung urut kronologis (lama -> baru), tapi di tabel
+  // ditampilkan terbalik (baru -> lama) supaya transaksi terbaru selalu
+  // terlihat di baris paling atas tanpa perlu pindah halaman.
+  const displayRows = useMemo(() => [...currentRows].reverse(), [currentRows]);
+
+  const totalPages = Math.max(1, Math.ceil(displayRows.length / pageSize));
+  const pageRows = displayRows.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     setSelectedIds(new Set());
-    setPage(Math.max(1, Math.ceil(currentRows.length / pageSize)));
+    // Transaksi terbaru ada di halaman 1 (lihat displayRows di atas), jadi
+    // cukup kembali ke halaman 1 setiap kali tab/pageSize/data berubah.
+    setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, pageSize, items.length]);
 
