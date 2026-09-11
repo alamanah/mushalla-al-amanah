@@ -72,13 +72,21 @@ export interface AboutContent {
   updated_at: string;
 }
 
-// "Donasi" | "Ramadhan" | "Qurban" dipakai internal untuk baris jurnal di
-// tabel_donasi/tabel_ramadhan/tabel_qurban (lihat src/lib/tabelKeuangan.ts) --
-// sengaja TIDAK dimasukkan ke FINANCIAL_JENIS supaya tidak muncul di dropdown
-// input manual/upload yang sudah ada.
 export type FinancialJenis = "BRI" | "BSI" | "UP Tunai" | "Infaq Buka Puasa" | "Donasi" | "Ramadhan" | "Qurban";
 
-export const FINANCIAL_JENIS: FinancialJenis[] = ["BRI", "BSI", "UP Tunai", "Infaq Buka Puasa"];
+// Dipakai di dropdown input manual & baris draft upload CSV. Memilih salah
+// satu dari "UP Tunai"/"Infaq Buka Puasa"/"Donasi"/"Ramadhan"/"Qurban" berarti
+// baris itu langsung dicatat di "kantong" dana itu sendiri (tabel_up_tunai,
+// dst -- lihat src/lib/tabelKeuangan.ts), BUKAN rekening bank.
+export const FINANCIAL_JENIS: FinancialJenis[] = [
+  "BRI",
+  "BSI",
+  "UP Tunai",
+  "Infaq Buka Puasa",
+  "Donasi",
+  "Ramadhan",
+  "Qurban",
+];
 
 export type FinancialKriteria =
   | "Saldo Awal"

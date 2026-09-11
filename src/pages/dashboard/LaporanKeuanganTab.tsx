@@ -7,21 +7,25 @@ function formatRupiah(n: number) {
 }
 
 interface Props {
+  /** Data dari tabel_bank (transaksi BRI + BSI). */
   items: FinancialTransaction[];
+  /** Data dari tabel_infaq_buka_puasa, untuk baris info "Infaq Buka Puasa" di
+   * bagian bawah laporan. Default ikut `items` kalau tidak diisi. */
+  bukaPuasaItems?: FinancialTransaction[];
   /** false = tampilan ringkas untuk halaman publik: tanpa pilih periode
    * (otomatis pakai periode terbaru) dan tanpa tombol Unduh PDF. Default
    * true (dipakai di Dashboard > Keuangan > tab Laporan). */
   showControls?: boolean;
 }
 
-export default function LaporanKeuanganTab({ items, showControls = true }: Props) {
+export default function LaporanKeuanganTab({ items, bukaPuasaItems, showControls = true }: Props) {
   const periodeOptions = useMemo(() => listPeriodeOptions(items), [items]);
   const [periode, setPeriode] = useState<string>(periodeOptions[0] ?? "");
 
   const laporan = useMemo(() => {
     if (!periode) return null;
-    return buildLaporanKeuangan(items, periode);
-  }, [items, periode]);
+    return buildLaporanKeuangan(items, periode, bukaPuasaItems);
+  }, [items, bukaPuasaItems, periode]);
 
   useEffect(() => {
     const cleanup = () => document.body.classList.remove("printing");

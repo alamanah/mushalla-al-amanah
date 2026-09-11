@@ -2,10 +2,18 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { parseBriStatement, parseBsiStatement, splitDuplicates } from "../../lib/bankStatement";
-import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
-import { isBukaPuasa, KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
+import { computeRunningSaldo, TransactionWithSaldo } from "../../lib/saldo";
 import { datetimeLocalToWitaIso, formatWita, nowWitaDatetimeLocal, toWitaDatetimeLocal } from "../../lib/waktu";
-import { buildJurnalRows, JurnalRowInsert } from "../../lib/tabelKeuangan";
+import {
+  buildJurnalRows,
+  JurnalRowInsert,
+  TABEL_BANK,
+  TABEL_DONASI,
+  TABEL_INFAQ_BUKA_PUASA,
+  TABEL_QURBAN,
+  TABEL_RAMADHAN,
+  TABEL_UP_TUNAI,
+} from "../../lib/tabelKeuangan";
 import LaporanKeuanganTab from "./LaporanKeuanganTab";
 import {
   DraftTransaction,
@@ -41,9 +49,22 @@ function formatTanggal(t: string | null) {
   return formatWita(t, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-type ActiveTab = FinancialJenis | "Rekapitulasi" | "Qurban" | "Donasi" | "Ramadhan" | "Buka Puasa" | "Laporan";
-const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi", "Qurban", "Donasi", "Ramadhan", "Buka Puasa", "Laporan"];
+type ActiveTab = "Laporan" | "BRI" | "BSI" | "UP Tunai" | "Buka Puasa" | "Donasi" | "Ramadhan" | "Qurban";
+const TABS: ActiveTab[] = ["Laporan", "BRI", "BSI", "UP Tunai", "Buka Puasa", "Donasi", "Ramadhan", "Qurban"];
 const PAGE_SIZES = [25, 50, 100] as const;
+
+/** Tab dashboard <-> tabel keuangan (Migrasi 011). BRI & BSI sama-sama baca
+ * dari tabel_bank (dibedakan lewat kolom jenis); tab lain masing-masing 1
+ * tabel sendiri. "Laporan" tidak punya tabel sendiri (gabungan/rekap). */
+const TABEL_BY_TAB: Partial<Record<ActiveTab, string>> = {
+  BRI: TABEL_BANK,
+  BSI: TABEL_BANK,
+  "UP Tunai": TABEL_UP_TUNAI,
+  "Buka Puasa": TABEL_INFAQ_BUKA_PUASA,
+  Donasi: TABEL_DONASI,
+  Ramadhan: TABEL_RAMADHAN,
+  Qurban: TABEL_QURBAN,
+};
 
 const emptyManualForm = {
   jenis: "UP Tunai" as FinancialJenis,
@@ -58,7 +79,13 @@ const emptyManualForm = {
 export default function FinancePage() {
   const { user, isAdmin, hasRole } = useAuth();
   const canEdit = hasRole("bendahara"); // admin read-only, sesuai kebijakan moderasi
-  const [items, setItems] = useState<FinancialTransaction[]>([]);
+  // Data per tabel (Migrasi 011) -- lihat TABEL_BY_TAB di atas.
+  const [bankRows, setBankRows] = useState<FinancialTransaction[]>([]);
+  const [upTunaiRowsRaw, setUpTunaiRowsRaw] = useState<FinancialTransaction[]>([]);
+  const [bukaPuasaRowsRaw, setBukaPuasaRowsRaw] = useState<FinancialTransaction[]>([]);
+  const [donasiRowsRaw, setDonasiRowsRaw] = useState<FinancialTransaction[]>([]);
+  const [ramadhanRowsRaw, setRamadhanRowsRaw] = useState<FinancialTransaction[]>([]);
+  const [qurbanRowsRaw, setQurbanRowsRaw] = useState<FinancialTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>("BRI");
 
@@ -98,65 +125,55 @@ export default function FinancePage() {
 
   const load = () => {
     setLoading(true);
-    supabase
-      .from("financial_transactions")
-      .select("*")
-      .then(({ data }) => {
-        setItems((data as FinancialTransaction[]) ?? []);
-        setLoading(false);
-      });
+    Promise.all([
+      supabase.from(TABEL_BANK).select("*"),
+      supabase.from(TABEL_UP_TUNAI).select("*"),
+      supabase.from(TABEL_INFAQ_BUKA_PUASA).select("*"),
+      supabase.from(TABEL_DONASI).select("*"),
+      supabase.from(TABEL_RAMADHAN).select("*"),
+      supabase.from(TABEL_QURBAN).select("*"),
+    ]).then(([bank, upTunai, bukaPuasa, donasi, ramadhan, qurban]) => {
+      setBankRows((bank.data as FinancialTransaction[]) ?? []);
+      setUpTunaiRowsRaw((upTunai.data as FinancialTransaction[]) ?? []);
+      setBukaPuasaRowsRaw((bukaPuasa.data as FinancialTransaction[]) ?? []);
+      setDonasiRowsRaw((donasi.data as FinancialTransaction[]) ?? []);
+      setRamadhanRowsRaw((ramadhan.data as FinancialTransaction[]) ?? []);
+      setQurbanRowsRaw((qurban.data as FinancialTransaction[]) ?? []);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  // Kas UP Tunai: baris Kriteria "Setor UP Tunai" seharusnya SELALU Debet
-  // (uang masuk ke kas tunai, lihat fitur jurnal kontra saat upload rekening
-  // koran & input manual). Kalau ada baris kriteria yang sama tapi kepencet
-  // di Kredit, itu dianggap data keliru/duplikat -- tidak ikut dihitung /
-  // ditampilkan khusus di tab UP Tunai.
-  const byJenis = useMemo(() => computeRunningSaldoByJenis(items), [items]);
-  const upTunaiRows = useMemo(
-    () =>
-      computeRunningSaldo(
-        items.filter((t) => t.jenis === "UP Tunai" && !(t.kriteria === "Setor UP Tunai" && t.kredit > 0))
-      ),
-    [items]
-  );
-  const combinedRows = useMemo(() => computeRunningSaldo(items), [items]);
-  const qurbanRows = useMemo(
-    () => computeRunningSaldo(items.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
-    [items]
-  );
-  const donasiRows = useMemo(
-    () => computeRunningSaldo(items.filter((t) => KRITERIA_DONASI.includes(t.kriteria))),
-    [items]
-  );
-  const ramadhanRows = useMemo(
-    () => computeRunningSaldo(items.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
-    [items]
-  );
-  const bukaPuasaRows = useMemo(() => computeRunningSaldo(items.filter((t) => isBukaPuasa(t))), [items]);
+  const briRows = useMemo(() => computeRunningSaldo(bankRows.filter((t) => t.jenis === "BRI")), [bankRows]);
+  const bsiRows = useMemo(() => computeRunningSaldo(bankRows.filter((t) => t.jenis === "BSI")), [bankRows]);
+  const upTunaiRows = useMemo(() => computeRunningSaldo(upTunaiRowsRaw), [upTunaiRowsRaw]);
+  const bukaPuasaRows = useMemo(() => computeRunningSaldo(bukaPuasaRowsRaw), [bukaPuasaRowsRaw]);
+  const donasiRows = useMemo(() => computeRunningSaldo(donasiRowsRaw), [donasiRowsRaw]);
+  const ramadhanRows = useMemo(() => computeRunningSaldo(ramadhanRowsRaw), [ramadhanRowsRaw]);
+  const qurbanRows = useMemo(() => computeRunningSaldo(qurbanRowsRaw), [qurbanRowsRaw]);
 
-  const isRekap = activeTab === "Rekapitulasi";
   const isLaporan = activeTab === "Laporan";
+  const currentTable = TABEL_BY_TAB[activeTab];
 
-  const currentRows: TransactionWithSaldo[] = isRekap
-    ? combinedRows
-    : activeTab === "Qurban"
-    ? qurbanRows
-    : activeTab === "Donasi"
-    ? donasiRows
-    : activeTab === "Ramadhan"
-    ? ramadhanRows
-    : activeTab === "Buka Puasa"
-    ? bukaPuasaRows
-    : isLaporan
-    ? []
-    : activeTab === "UP Tunai"
-    ? upTunaiRows
-    : byJenis[activeTab] ?? [];
+  const currentRows: TransactionWithSaldo[] =
+    activeTab === "BRI"
+      ? briRows
+      : activeTab === "BSI"
+      ? bsiRows
+      : activeTab === "UP Tunai"
+      ? upTunaiRows
+      : activeTab === "Buka Puasa"
+      ? bukaPuasaRows
+      : activeTab === "Donasi"
+      ? donasiRows
+      : activeTab === "Ramadhan"
+      ? ramadhanRows
+      : activeTab === "Qurban"
+      ? qurbanRows
+      : [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
 
   // Saldo berjalan dihitung urut kronologis (lama -> baru), tapi di tabel
@@ -173,7 +190,16 @@ export default function FinancePage() {
     // cukup kembali ke halaman 1 setiap kali tab/pageSize/data berubah.
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, pageSize, items.length]);
+  }, [
+    activeTab,
+    pageSize,
+    bankRows.length,
+    upTunaiRowsRaw.length,
+    bukaPuasaRowsRaw.length,
+    donasiRowsRaw.length,
+    ramadhanRowsRaw.length,
+    qurbanRowsRaw.length,
+  ]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -197,10 +223,10 @@ export default function FinancePage() {
   };
 
   const bulkDelete = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || !currentTable) return;
     if (!confirm(`Hapus ${selectedIds.size} transaksi terpilih? Tindakan ini tidak bisa dibatalkan.`)) return;
     setBulkDeleting(true);
-    const { error } = await supabase.from("financial_transactions").delete().in("id", Array.from(selectedIds));
+    const { error } = await supabase.from(currentTable).delete().in("id", Array.from(selectedIds));
     setBulkDeleting(false);
     if (error) {
       alert("Gagal menghapus: " + error.message);
@@ -229,7 +255,7 @@ export default function FinancePage() {
       if (parsed.length === 0) {
         setParseError("Tidak ada baris transaksi yang terbaca dari file ini. Pastikan formatnya sesuai.");
       }
-      const existingForJenis = items.filter((it) => it.jenis === uploadJenis);
+      const existingForJenis = bankRows.filter((it) => it.jenis === uploadJenis);
       const { unique, duplicateCount } = splitDuplicates(parsed, existingForJenis);
       if (duplicateCount > 0) {
         setSkippedInfo(
@@ -308,13 +334,6 @@ export default function FinancePage() {
     setDrafts([]);
     setUploadJenis(null);
     setSkippedInfo(null);
-    // Catatan: hasil upload sekarang tersimpan di 7 tabel baru (tabel_bank,
-    // tabel_up_tunai, dst -- lihat migration_011), BUKAN lagi di
-    // financial_transactions. Tab dashboard di bawah masih baca
-    // financial_transactions (Tahap 2 menyusul), jadi `load()` di sini
-    // sengaja dibiarkan untuk transaksi yang datang dari sumber lain
-    // (input manual/edit) -- baris hasil upload CSV baru terlihat di
-    // dashboard setelah Tahap 2 selesai.
     load();
   };
 
@@ -329,22 +348,33 @@ export default function FinancePage() {
     e.preventDefault();
     setSubmitting(true);
     const isSaldoAwal = showManual === "saldo_awal";
-    const { error } = await supabase.from("financial_transactions").insert({
-      tanggal: datetimeLocalToWitaIso(manualForm.tanggal),
-      periode: manualForm.periode,
-      uraian: null,
+    // Dipetakan lewat aturan yang sama seperti upload CSV: kalau Jenis-nya
+    // BRI/BSI, Kriteria menentukan apakah baris ini dicatat ganda (mis.
+    // Saldo Awal -> tabel_bank + tabel_up_bank, sama-sama Debet); kalau
+    // Jenis-nya kantong dana sendiri (UP Tunai/Donasi/dst), cukup 1 baris.
+    const draftLike: DraftTransaction = {
+      tanggal: manualForm.tanggal,
+      uraian: "",
       kriteria: isSaldoAwal ? "Saldo Awal" : manualForm.kriteria,
       debet: Number(manualForm.debet) || 0,
       kredit: isSaldoAwal ? 0 : Number(manualForm.kredit) || 0,
-      keterangan: manualForm.keterangan || (isSaldoAwal ? "Saldo Awal" : null),
+      keterangan: manualForm.keterangan || (isSaldoAwal ? "Saldo Awal" : ""),
       jenis: manualForm.jenis,
-      created_by: user?.id ?? null,
+    };
+    const jurnalRows = buildJurnalRows(draftLike, {
+      tanggalIso: datetimeLocalToWitaIso(manualForm.tanggal),
+      periode: manualForm.periode,
+      createdBy: user?.id ?? null,
     });
-    setSubmitting(false);
-    if (error) {
-      alert("Gagal menyimpan: " + error.message);
-      return;
+    for (const { table, row } of jurnalRows) {
+      const { error } = await supabase.from(table).insert(row);
+      if (error) {
+        setSubmitting(false);
+        alert(`Gagal menyimpan ke tabel "${table}": ` + error.message);
+        return;
+      }
     }
+    setSubmitting(false);
     setManualForm(emptyManualForm);
     setShowManual(null);
     load();
@@ -360,9 +390,9 @@ export default function FinancePage() {
     });
   };
   const saveEdit = async (id: string) => {
-    if (!editForm) return;
-    await supabase
-      .from("financial_transactions")
+    if (!editForm || !currentTable) return;
+    const { error } = await supabase
+      .from(currentTable)
       .update({
         tanggal: datetimeLocalToWitaIso(editForm.tanggal),
         jenis: editForm.jenis,
@@ -370,12 +400,21 @@ export default function FinancePage() {
         keterangan: editForm.keterangan,
       })
       .eq("id", id);
+    if (error) {
+      alert("Gagal menyimpan: " + error.message);
+      return;
+    }
     setEditingId(null);
     load();
   };
   const removeRow = async (id: string) => {
+    if (!currentTable) return;
     if (!confirm("Hapus transaksi ini?")) return;
-    await supabase.from("financial_transactions").delete().eq("id", id);
+    const { error } = await supabase.from(currentTable).delete().eq("id", id);
+    if (error) {
+      alert("Gagal menghapus: " + error.message);
+      return;
+    }
     load();
   };
 
@@ -651,7 +690,7 @@ export default function FinancePage() {
         </form>
       )}
 
-      {/* ---- Tabel transaksi per Jenis rekening / Rekapitulasi gabungan ---- */}
+      {/* ---- Tabel transaksi per tab (masing-masing baca 1 tabel keuangan) ---- */}
       <div className="flex gap-2 mb-3">
         {TABS.map((j) => (
           <button
@@ -667,13 +706,11 @@ export default function FinancePage() {
       </div>
 
       {isLaporan ? (
-        <LaporanKeuanganTab items={items} />
+        <LaporanKeuanganTab items={bankRows} bukaPuasaItems={bukaPuasaRowsRaw} />
       ) : (
         <>
       <div className="card mb-3 flex items-center justify-between">
-        <span className="text-sm text-gray-500">
-          {isRekap ? "Saldo Gabungan (BRI + BSI + UP Tunai) saat ini" : `Saldo ${activeTab} saat ini`}
-        </span>
+        <span className="text-sm text-gray-500">Saldo {activeTab} saat ini</span>
         <span className="text-xl font-bold text-primary-800">{formatRupiah(saldoTerkini)}</span>
       </div>
 
@@ -750,13 +787,16 @@ export default function FinancePage() {
                     )}
                   </td>
                   <td className="py-2 pr-3 whitespace-nowrap">
-                    {editingId === t.id ? (
+                    {editingId === t.id && (activeTab === "BRI" || activeTab === "BSI") ? (
+                      // Jenis cuma bisa ditukar antar BRI/BSI (dua-duanya sama-sama
+                      // di tabel_bank). Tab lain masing-masing sudah 1 tabel sendiri,
+                      // jadi Jenis-nya tetap (lihat TABEL_BY_TAB).
                       <select
                         className="input !text-xs !py-1"
                         value={editForm?.jenis}
                         onChange={(e) => setEditForm((f) => (f ? { ...f, jenis: e.target.value as FinancialJenis } : f))}
                       >
-                        {FINANCIAL_JENIS.map((j) => (
+                        {(["BRI", "BSI"] as FinancialJenis[]).map((j) => (
                           <option key={j} value={j}>
                             {j}
                           </option>

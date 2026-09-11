@@ -68,7 +68,14 @@ export interface LaporanKeuanganResult {
  *   (non "Saldo Awal") pada periode ini -- otomatis ikut menghitung baris
  *   "Saldo Awal" rekening (BRI/BSI/UP Tunai) kalau itu yang mendahuluinya.
  */
-export function buildLaporanKeuangan(allItems: FinancialTransaction[], periode: string): LaporanKeuanganResult {
+export function buildLaporanKeuangan(
+  allItems: FinancialTransaction[],
+  periode: string,
+  /** Sumber data untuk total Infaq Buka Puasa (default: tabel_infaq_buka_puasa
+   * -- lihat FinancePage.tsx). Terpisah dari `allItems` (tabel_bank) karena
+   * sejak Migrasi 011, dana Buka Puasa dicatat di tabelnya sendiri. */
+  bukaPuasaItems: FinancialTransaction[] = allItems
+): LaporanKeuanganResult {
   const reportable = allItems.filter(
     (t) => !EXCLUDED_KRITERIA_DARI_LAPORAN.includes(t.kriteria) && !isBukaPuasa(t)
   );
@@ -101,7 +108,7 @@ export function buildLaporanKeuangan(allItems: FinancialTransaction[], periode: 
   }, null);
   const tahun = tanggalTerakhir ? new Date(tanggalTerakhir).getFullYear() : new Date().getFullYear();
 
-  const totalBukaPuasa = allItems
+  const totalBukaPuasa = bukaPuasaItems
     .filter((t) => t.periode === periode && isBukaPuasa(t))
     .reduce((sum, t) => sum + Number(t.debet) - Number(t.kredit), 0);
 

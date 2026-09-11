@@ -1,14 +1,10 @@
 import { DraftTransaction, FinancialJenis, FinancialKriteria } from "../types";
 
 /**
- * Nama 7 tabel keuangan baru (Migrasi 011) -- pengganti `financial_transactions`
- * untuk transaksi yang masuk lewat upload rekening koran (CSV BRI/BSI).
- *
- * TAHAP 1 (sekarang): upload CSV menulis ke tabel-tabel ini.
- * TAHAP 2 (menyusul): tab dashboard (BRI/BSI/UP Tunai/dst) & input manual
- * akan disambungkan untuk MEMBACA/MENULIS ke tabel-tabel ini juga. Sampai
- * Tahap 2 selesai, data hasil upload CSV baru terlihat lewat Supabase Table
- * Editor, BELUM muncul di tab dashboard (yang masih baca `financial_transactions`).
+ * Nama 7 tabel keuangan baru (Migrasi 011) -- pengganti `financial_transactions`.
+ * Upload CSV (BRI/BSI), input manual, Rekam Saldo Awal, dan tab dashboard
+ * (BRI/BSI/UP Tunai/Buka Puasa/Donasi/Ramadhan/Qurban/Laporan) semuanya
+ * membaca & menulis ke tabel-tabel ini.
  */
 export const TABEL_BANK = "tabel_bank";
 export const TABEL_UP_TUNAI = "tabel_up_tunai";
@@ -79,17 +75,26 @@ export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): Ju
   // Kontra: nominal Debet<->Kredit ditukar, kriteria & tanggal/uraian sama.
   const kontraNilai = { debet: draft.kredit, kredit: draft.debet };
 
-  // Baris hasil trigger manual "Jenis: UP Tunai" pada draft (lihat updateDraft
-  // di FinancePage.tsx) -- ini BUKAN baris rekening koran asli, langsung
-  // masuk tabel_up_tunai saja, tidak perlu jurnal ganda lagi.
-  if (draft.jenis === "UP Tunai") {
-    return [{ table: TABEL_UP_TUNAI, row: asli }];
+  // Jenis BUKAN rekening bank (dipilih langsung, baik dari input manual /
+  // Rekam Saldo Awal maupun trigger manual di draft upload) -- ini transaksi
+  // yang terjadi langsung di "kantong" dana itu sendiri (bukan lewat bank),
+  // jadi cukup 1 baris ke tabel kantongnya masing-masing, tanpa jurnal ganda.
+  const TABEL_LANGSUNG: Partial<Record<FinancialJenis, string>> = {
+    "UP Tunai": TABEL_UP_TUNAI,
+    "Infaq Buka Puasa": TABEL_INFAQ_BUKA_PUASA,
+    Donasi: TABEL_DONASI,
+    Ramadhan: TABEL_RAMADHAN,
+    Qurban: TABEL_QURBAN,
+  };
+  if (TABEL_LANGSUNG[draft.jenis]) {
+    return [{ table: TABEL_LANGSUNG[draft.jenis]!, row: asli }];
   }
 
-  // Kriteria "Infaq Buka Puasa" dipilih manual di draft -- logika jurnal
-  // gandanya masih dirancang sendiri oleh bendahara, jadi untuk sementara
-  // langsung masuk tabel_infaq_buka_puasa saja (satu baris, tanpa kontra).
-  if (draft.jenis === "Infaq Buka Puasa" || draft.kriteria === "Infaq Buka Puasa") {
+  // Kriteria "Infaq Buka Puasa" dipilih manual pada baris Jenis BRI/BSI --
+  // logika jurnal gandanya masih dirancang sendiri oleh bendahara, jadi
+  // untuk sementara langsung masuk tabel_infaq_buka_puasa saja (satu baris,
+  // tanpa kontra ke tabel_bank).
+  if (draft.kriteria === "Infaq Buka Puasa") {
     return [{ table: TABEL_INFAQ_BUKA_PUASA, row: asli }];
   }
 

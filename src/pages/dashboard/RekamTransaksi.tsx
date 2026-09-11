@@ -2,8 +2,9 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
-import { FINANCIAL_JENIS, FINANCIAL_KRITERIA, FinancialJenis, FinancialKriteria } from "../../types";
+import { DraftTransaction, FINANCIAL_JENIS, FINANCIAL_KRITERIA, FinancialJenis, FinancialKriteria } from "../../types";
 import { datetimeLocalToWitaIso, nowWitaDatetimeLocal } from "../../lib/waktu";
+import { buildJurnalRows } from "../../lib/tabelKeuangan";
 
 const emptyForm = {
   jenis: "UP Tunai" as FinancialJenis,
@@ -47,22 +48,29 @@ export default function RekamTransaksi() {
     setSavedInfo(null);
     const isSaldoAwal = mode === "saldo_awal";
     setSaving(true);
-    const { error: err } = await supabase.from("financial_transactions").insert({
-      tanggal: datetimeLocalToWitaIso(form.tanggal),
-      periode: form.periode,
-      uraian: null,
+    const draftLike: DraftTransaction = {
+      tanggal: form.tanggal,
+      uraian: "",
       kriteria: isSaldoAwal ? "Saldo Awal" : form.kriteria,
       debet: Number(form.debet) || 0,
       kredit: isSaldoAwal ? 0 : Number(form.kredit) || 0,
-      keterangan: form.keterangan || (isSaldoAwal ? "Saldo Awal" : null),
+      keterangan: form.keterangan || (isSaldoAwal ? "Saldo Awal" : ""),
       jenis: form.jenis,
-      created_by: user?.id ?? null,
+    };
+    const jurnalRows = buildJurnalRows(draftLike, {
+      tanggalIso: datetimeLocalToWitaIso(form.tanggal),
+      periode: form.periode,
+      createdBy: user?.id ?? null,
     });
-    setSaving(false);
-    if (err) {
-      setError("Gagal menyimpan: " + err.message);
-      return;
+    for (const { table, row } of jurnalRows) {
+      const { error: err } = await supabase.from(table).insert(row);
+      if (err) {
+        setSaving(false);
+        setError(`Gagal menyimpan ke tabel "${table}": ` + err.message);
+        return;
+      }
     }
+    setSaving(false);
     setSavedInfo("Transaksi tersimpan.");
     // Reset tapi pertahankan Jenis & Periode supaya input berikutnya lebih cepat.
     // Tanggal diisi ulang dengan waktu WITA saat ini (bukan yang dibekukan
