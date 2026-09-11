@@ -51,11 +51,19 @@ export interface JurnalContext {
   tanggalIso: string | null;
   periode: string;
   createdBy: string | null;
+  /** Saldo tabel_infaq_buka_puasa SAAT INI (SEBELUM transaksi ini) -- dipakai
+   * khusus untuk transfer talangan dari UP Tunai (lihat buildJurnalRows).
+   * Kalau memproses banyak baris sekaligus (upload CSV) dan lebih dari satu
+   * barisnya menyentuh tabel_infaq_buka_puasa, nilainya harus dinaikkan
+   * berjalan oleh pemanggil supaya baris berikutnya lihat saldo yang sudah
+   * termasuk baris sebelumnya dalam batch yang sama. */
+  bukaPuasaSaldoSaatIni?: number;
 }
 
 /**
- * Bangun baris jurnal (bisa 1 atau 2 baris, ke tabel berbeda) untuk satu baris
- * draft hasil upload CSV, sesuai aturan a-g yang sudah ditentukan.
+ * Bangun baris jurnal (1-3 baris, ke tabel berbeda) untuk satu baris transaksi
+ * (dari draft upload CSV maupun input manual/Rekam Saldo Awal), sesuai aturan
+ * a-g yang sudah ditentukan.
  */
 export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): JurnalRow[] {
   const base = {
@@ -74,6 +82,49 @@ export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): Ju
   };
   // Kontra: nominal Debet<->Kredit ditukar, kriteria & tanggal/uraian sama.
   const kontraNilai = { debet: draft.kredit, kredit: draft.debet };
+
+  // Transfer talangan dari kas UP Tunai untuk menutup KEKURANGAN dana Buka
+  // Puasa -- dipicu spesifik oleh kombinasi Jenis "UP Tunai" + Kriteria
+  // "Infaq Buka Puasa" (beda dari Jenis "UP Tunai" biasa yang cuma 1 baris).
+  // Menghasilkan 3 baris:
+  //  1. tabel_up_tunai: Kredit sejumlah talangan (uang keluar dari kas tunai)
+  //  2. tabel_infaq_buka_puasa: Debit sejumlah sama -- "Kekurangan buka puasa"
+  //  3. tabel_infaq_buka_puasa: Kredit = saldo akhir Buka Puasa SETELAH baris
+  //     ke-2 (infaq terkumpul + talangan) -- "Pelaksanaan buka puasa", jadi
+  //     seluruh dana Buka Puasa dianggap habis terpakai, saldo balik ke 0.
+  if (draft.jenis === "UP Tunai" && draft.kriteria === "Infaq Buka Puasa") {
+    const talangan = draft.kredit > 0 ? draft.kredit : draft.debet;
+    const saldoSebelum = ctx.bukaPuasaSaldoSaatIni ?? 0;
+    const saldoAkhir = saldoSebelum + talangan;
+    return [
+      {
+        table: TABEL_UP_TUNAI,
+        row: { ...base, kriteria: draft.kriteria, debet: 0, kredit: talangan, jenis: "UP Tunai" },
+      },
+      {
+        table: TABEL_INFAQ_BUKA_PUASA,
+        row: {
+          ...base,
+          kriteria: "Infaq Buka Puasa",
+          debet: talangan,
+          kredit: 0,
+          keterangan: "Kekurangan buka puasa",
+          jenis: "Infaq Buka Puasa",
+        },
+      },
+      {
+        table: TABEL_INFAQ_BUKA_PUASA,
+        row: {
+          ...base,
+          kriteria: "Infaq Buka Puasa",
+          debet: 0,
+          kredit: saldoAkhir,
+          keterangan: "Pelaksanaan buka puasa",
+          jenis: "Infaq Buka Puasa",
+        },
+      },
+    ];
+  }
 
   // Jenis BUKAN rekening bank (dipilih langsung, baik dari input manual /
   // Rekam Saldo Awal maupun trigger manual di draft upload) -- ini transaksi
@@ -142,4 +193,15 @@ export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): Ju
     { table: TABEL_BANK, row: asli },
     { table: TABEL_UP_BANK, row: asli },
   ];
+}
+
+/** Efek bersih (Debet-Kredit) dari baris hasil buildJurnalRows() yang
+ * menyentuh tabel_infaq_buka_puasa -- dipakai pemanggil yang memproses
+ * banyak baris sekaligus (upload CSV) untuk menaikkan `bukaPuasaSaldoSaatIni`
+ * secara berjalan supaya baris Buka Puasa berikutnya di batch yang sama
+ * melihat saldo yang sudah termasuk baris-baris sebelumnya. */
+export function efekBukaPuasa(rows: JurnalRow[]): number {
+  return rows
+    .filter((r) => r.table === TABEL_INFAQ_BUKA_PUASA)
+    .reduce((sum, r) => sum + Number(r.row.debet) - Number(r.row.kredit), 0);
 }

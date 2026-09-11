@@ -6,6 +6,7 @@ import { computeRunningSaldo, TransactionWithSaldo } from "../../lib/saldo";
 import { datetimeLocalToWitaIso, formatWita, nowWitaDatetimeLocal, toWitaDatetimeLocal } from "../../lib/waktu";
 import {
   buildJurnalRows,
+  efekBukaPuasa,
   JurnalRowInsert,
   TABEL_BANK,
   TABEL_DONASI,
@@ -312,16 +313,22 @@ export default function FinancePage() {
     if (!uploadJenis || drafts.length === 0) return;
     setSubmitting(true);
 
-    // Setiap baris draft dipecah jadi 1-2 baris jurnal (jurnal ganda) sesuai
+    // Setiap baris draft dipecah jadi 1-3 baris jurnal (jurnal ganda) sesuai
     // aturan a-g, lalu dikelompokkan per tabel tujuan supaya tiap tabel cukup
     // 1x panggilan insert (lihat src/lib/tabelKeuangan.ts).
+    // `bukaPuasaSaldoBerjalan` dinaikkan tiap kali ada baris yang menyentuh
+    // tabel_infaq_buka_puasa, supaya kalau ada >1 transfer talangan Buka
+    // Puasa dalam 1 batch upload, baris berikutnya lihat saldo yang benar.
+    let bukaPuasaSaldoBerjalan = bukaPuasaRows.length > 0 ? bukaPuasaRows[bukaPuasaRows.length - 1].saldo : 0;
     const grouped = new Map<string, JurnalRowInsert[]>();
     for (const d of drafts) {
       const jurnalRows = buildJurnalRows(d, {
         tanggalIso: datetimeLocalToWitaIso(d.tanggal),
         periode: draftPeriode,
         createdBy: user?.id ?? null,
+        bukaPuasaSaldoSaatIni: bukaPuasaSaldoBerjalan,
       });
+      bukaPuasaSaldoBerjalan += efekBukaPuasa(jurnalRows);
       for (const { table, row } of jurnalRows) {
         const list = grouped.get(table) ?? [];
         list.push(row);
@@ -373,6 +380,7 @@ export default function FinancePage() {
       tanggalIso: datetimeLocalToWitaIso(manualForm.tanggal),
       periode: manualForm.periode,
       createdBy: user?.id ?? null,
+      bukaPuasaSaldoSaatIni: bukaPuasaRows.length > 0 ? bukaPuasaRows[bukaPuasaRows.length - 1].saldo : 0,
     });
     for (const { table, row } of jurnalRows) {
       const { error } = await supabase.from(table).insert(row);
@@ -647,6 +655,14 @@ export default function FinancePage() {
                   </option>
                 ))}
               </select>
+              {manualForm.jenis === "UP Tunai" && manualForm.kriteria === "Infaq Buka Puasa" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Ini talangan dari kas UP Tunai untuk menutup kekurangan dana Buka Puasa -- isi <b>Kredit</b> sejumlah
+                  talangannya. Otomatis tercatat: UP Tunai Kredit, Buka Puasa Debit "Kekurangan buka puasa", lalu
+                  seluruh saldo Buka Puasa (infaq + talangan) langsung dicatat Kredit "Pelaksanaan buka puasa" (saldo
+                  balik ke 0).
+                </p>
+              )}
             </div>
           )}
           <div>

@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { DraftTransaction, FINANCIAL_JENIS, FINANCIAL_KRITERIA, FinancialJenis, FinancialKriteria } from "../../types";
 import { datetimeLocalToWitaIso, nowWitaDatetimeLocal } from "../../lib/waktu";
-import { buildJurnalRows } from "../../lib/tabelKeuangan";
+import { buildJurnalRows, TABEL_INFAQ_BUKA_PUASA } from "../../lib/tabelKeuangan";
 
 const emptyForm = {
   jenis: "UP Tunai" as FinancialJenis,
@@ -57,10 +57,19 @@ export default function RekamTransaksi() {
       keterangan: form.keterangan || (isSaldoAwal ? "Saldo Awal" : ""),
       jenis: form.jenis,
     };
+    // Transfer talangan dari UP Tunai utk Buka Puasa (lihat buildJurnalRows)
+    // butuh tahu saldo tabel_infaq_buka_puasa saat ini -- halaman ini tidak
+    // menyimpan data tabel manapun di state, jadi ambil langsung kalau perlu.
+    let bukaPuasaSaldoSaatIni = 0;
+    if (draftLike.jenis === "UP Tunai" && draftLike.kriteria === "Infaq Buka Puasa") {
+      const { data } = await supabase.from(TABEL_INFAQ_BUKA_PUASA).select("debet,kredit");
+      bukaPuasaSaldoSaatIni = (data ?? []).reduce((sum, r) => sum + Number(r.debet) - Number(r.kredit), 0);
+    }
     const jurnalRows = buildJurnalRows(draftLike, {
       tanggalIso: datetimeLocalToWitaIso(form.tanggal),
       periode: form.periode,
       createdBy: user?.id ?? null,
+      bukaPuasaSaldoSaatIni,
     });
     for (const { table, row } of jurnalRows) {
       const { error: err } = await supabase.from(table).insert(row);
@@ -170,6 +179,12 @@ export default function RekamTransaksi() {
                 </option>
               ))}
             </select>
+            {form.jenis === "UP Tunai" && form.kriteria === "Infaq Buka Puasa" && (
+              <p className="text-xs text-gray-500 mt-1">
+                Talangan dari kas UP Tunai untuk menutup kekurangan dana Buka Puasa -- isi <b>Kredit</b> sejumlah
+                talangannya. Saldo Buka Puasa otomatis dicatat habis terpakai ("Pelaksanaan buka puasa").
+              </p>
+            )}
           </div>
         )}
 
