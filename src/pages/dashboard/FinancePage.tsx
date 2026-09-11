@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { parseBriStatement, parseBsiStatement, splitDuplicates } from "../../lib/bankStatement";
 import { computeRunningSaldo, TransactionWithSaldo } from "../../lib/saldo";
+import { listKeteranganOptions, listPeriodeOptions, suggestNextPeriode } from "../../lib/saran";
 import { datetimeLocalToWitaIso, formatWita, nowWitaDatetimeLocal, toWitaDatetimeLocal } from "../../lib/waktu";
 import {
   buildJurnalRows,
@@ -163,6 +164,24 @@ export default function FinancePage() {
   // (yang juga menyimpan salinan dana khusus Donasi/Ramadhan/Qurban asli).
   const laporanItems = useMemo(() => [...upBankRowsRaw, ...upTunaiRowsRaw], [upBankRowsRaw, upTunaiRowsRaw]);
 
+  // Gabungan SEMUA tabel, dipakai khusus utk saran Periode & Keterangan di
+  // form upload/manual (bukan utk perhitungan saldo/laporan).
+  const allRowsForSaran = useMemo(
+    () => [
+      ...bankRows,
+      ...upBankRowsRaw,
+      ...upTunaiRowsRaw,
+      ...bukaPuasaRowsRaw,
+      ...donasiRowsRaw,
+      ...ramadhanRowsRaw,
+      ...qurbanRowsRaw,
+    ],
+    [bankRows, upBankRowsRaw, upTunaiRowsRaw, bukaPuasaRowsRaw, donasiRowsRaw, ramadhanRowsRaw, qurbanRowsRaw]
+  );
+  const periodeOptions = useMemo(() => listPeriodeOptions(allRowsForSaran), [allRowsForSaran]);
+  const periodeSuggestion = useMemo(() => suggestNextPeriode(allRowsForSaran), [allRowsForSaran]);
+  const keteranganOptions = useMemo(() => listKeteranganOptions(allRowsForSaran), [allRowsForSaran]);
+
   const isLaporan = activeTab === "Laporan";
   const currentTable = TABEL_BY_TAB[activeTab];
 
@@ -249,6 +268,7 @@ export default function FinancePage() {
     setUploadJenis(jenis);
     setParseError(null);
     setDrafts([]);
+    setDraftPeriode(periodeSuggestion);
     fileInputRef.current?.click();
   };
 
@@ -391,7 +411,9 @@ export default function FinancePage() {
       }
     }
     setSubmitting(false);
-    setManualForm(emptyManualForm);
+    // Pertahankan Periode terakhir dipakai (biasanya bendahara input beberapa
+    // transaksi berturut-turut utk periode yang sama).
+    setManualForm((f) => ({ ...emptyManualForm, periode: f.periode }));
     setShowManual(null);
     load();
   };
@@ -436,6 +458,20 @@ export default function FinancePage() {
 
   return (
     <div>
+      {/* Saran otomatis (dari data yang sudah ada di database) utk input
+       * Periode & Keterangan di form upload/manual di bawah. */}
+      <datalist id="periode-suggestions">
+        {periodeOptions.includes(periodeSuggestion) ? null : <option value={periodeSuggestion} />}
+        {periodeOptions.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
+      <datalist id="keterangan-suggestions">
+        {keteranganOptions.map((k) => (
+          <option key={k} value={k} />
+        ))}
+      </datalist>
+
       <div className="flex items-center justify-between mb-2">
         <h1 className="font-serif text-2xl font-bold text-primary-900">Keuangan</h1>
         {!canEdit && (
@@ -454,10 +490,22 @@ export default function FinancePage() {
             <button className="btn-primary" onClick={() => handlePickFile("BSI")}>
               📥 Upload Rek. Koran BSI
             </button>
-            <button className="btn-gold" onClick={() => setShowManual("saldo_awal")}>
+            <button
+              className="btn-gold"
+              onClick={() => {
+                setManualForm((f) => ({ ...f, periode: periodeSuggestion }));
+                setShowManual("saldo_awal");
+              }}
+            >
               🏁 Rekam Saldo Awal
             </button>
-            <button className="btn-secondary" onClick={() => setShowManual("manual")}>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setManualForm((f) => ({ ...f, periode: periodeSuggestion }));
+                setShowManual("manual");
+              }}
+            >
               + Transaksi Manual
             </button>
           </div>
@@ -490,11 +538,6 @@ export default function FinancePage() {
                 placeholder="Pekan 1"
                 list="periode-suggestions"
               />
-              <datalist id="periode-suggestions">
-                {Array.from({ length: 20 }, (_, i) => `Pekan ${i + 1}`).map((p) => (
-                  <option key={p} value={p} />
-                ))}
-              </datalist>
             </div>
           </div>
           <p className="text-xs text-gray-500 mb-3">
@@ -577,6 +620,7 @@ export default function FinancePage() {
                         className="input !text-xs !py-1 !w-40"
                         value={d.keterangan}
                         onChange={(e) => updateDraft(idx, { keterangan: e.target.value })}
+                        list="keterangan-suggestions"
                       />
                     </td>
                     <td className="py-1 pr-2">
@@ -639,6 +683,7 @@ export default function FinancePage() {
               value={manualForm.periode}
               onChange={(e) => setManualForm({ ...manualForm, periode: e.target.value })}
               placeholder="Pekan 1"
+              list="periode-suggestions"
             />
           </div>
           {showManual === "manual" && (
@@ -694,6 +739,7 @@ export default function FinancePage() {
               value={manualForm.keterangan}
               onChange={(e) => setManualForm({ ...manualForm, keterangan: e.target.value })}
               placeholder={showManual === "saldo_awal" ? "Saldo Awal" : ""}
+              list="keterangan-suggestions"
             />
           </div>
           <div className="sm:col-span-3 flex gap-2">

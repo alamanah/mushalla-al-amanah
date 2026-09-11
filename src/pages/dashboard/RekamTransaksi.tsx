@@ -1,10 +1,27 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
-import { DraftTransaction, FINANCIAL_JENIS, FINANCIAL_KRITERIA, FinancialJenis, FinancialKriteria } from "../../types";
+import {
+  DraftTransaction,
+  FINANCIAL_JENIS,
+  FINANCIAL_KRITERIA,
+  FinancialJenis,
+  FinancialKriteria,
+  FinancialTransaction,
+} from "../../types";
 import { datetimeLocalToWitaIso, nowWitaDatetimeLocal } from "../../lib/waktu";
-import { buildJurnalRows, TABEL_INFAQ_BUKA_PUASA } from "../../lib/tabelKeuangan";
+import { listKeteranganOptions, listPeriodeOptions, suggestNextPeriode } from "../../lib/saran";
+import {
+  buildJurnalRows,
+  TABEL_BANK,
+  TABEL_DONASI,
+  TABEL_INFAQ_BUKA_PUASA,
+  TABEL_QURBAN,
+  TABEL_RAMADHAN,
+  TABEL_UP_BANK,
+  TABEL_UP_TUNAI,
+} from "../../lib/tabelKeuangan";
 
 const emptyForm = {
   jenis: "UP Tunai" as FinancialJenis,
@@ -32,6 +49,33 @@ export default function RekamTransaksi() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedInfo, setSavedInfo] = useState<string | null>(null);
+
+  // Data ringan dari semua tabel keuangan, khusus utk saran otomatis Periode
+  // & Keterangan (halaman ini tidak menyimpan data tabel manapun di state
+  // untuk keperluan lain -- lihat komentar di submit()).
+  const [saranData, setSaranData] = useState<FinancialTransaction[]>([]);
+  useEffect(() => {
+    Promise.all([
+      supabase.from(TABEL_BANK).select("*"),
+      supabase.from(TABEL_UP_BANK).select("*"),
+      supabase.from(TABEL_UP_TUNAI).select("*"),
+      supabase.from(TABEL_INFAQ_BUKA_PUASA).select("*"),
+      supabase.from(TABEL_DONASI).select("*"),
+      supabase.from(TABEL_RAMADHAN).select("*"),
+      supabase.from(TABEL_QURBAN).select("*"),
+    ]).then((results) => {
+      setSaranData(results.flatMap((r) => (r.data as FinancialTransaction[]) ?? []));
+    });
+  }, []);
+  const periodeOptions = useMemo(() => listPeriodeOptions(saranData), [saranData]);
+  const periodeSuggestion = useMemo(() => suggestNextPeriode(saranData), [saranData]);
+  const keteranganOptions = useMemo(() => listKeteranganOptions(saranData), [saranData]);
+  useEffect(() => {
+    // Cuma timpa kalau bendahara belum sempat mengubah dari nilai awal
+    // "Pekan 1", supaya tidak menimpa input yang sedang diketik.
+    setForm((f) => (f.periode === "Pekan 1" ? { ...f, periode: periodeSuggestion } : f));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodeSuggestion]);
 
   if (!canEdit) {
     return (
@@ -90,6 +134,18 @@ export default function RekamTransaksi() {
 
   return (
     <div className="max-w-md mx-auto pb-6">
+      <datalist id="periode-suggestions">
+        {periodeOptions.includes(periodeSuggestion) ? null : <option value={periodeSuggestion} />}
+        {periodeOptions.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
+      <datalist id="keterangan-suggestions">
+        {keteranganOptions.map((k) => (
+          <option key={k} value={k} />
+        ))}
+      </datalist>
+
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-serif text-xl font-bold text-primary-900">Rekam Transaksi</h1>
         <Link to="/dashboard/keuangan" className="text-sm text-primary-700 hover:underline">
@@ -162,6 +218,7 @@ export default function RekamTransaksi() {
             value={form.periode}
             onChange={(e) => setForm({ ...form, periode: e.target.value })}
             placeholder="Pekan 1"
+            list="periode-suggestions"
           />
         </div>
 
@@ -221,6 +278,7 @@ export default function RekamTransaksi() {
             value={form.keterangan}
             onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
             placeholder={mode === "saldo_awal" ? "Saldo Awal" : ""}
+            list="keterangan-suggestions"
           />
         </div>
 

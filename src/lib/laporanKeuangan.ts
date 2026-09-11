@@ -1,5 +1,6 @@
 import { FinancialKriteria, FinancialTransaction } from "../types";
 import { computeRunningSaldo } from "./saldo";
+export { listPeriodeOptions } from "./saran";
 
 /** Kriteria yang dikelola di tab tersendiri (Qurban/Donasi/Ramadhan/Buka Puasa)
  * dan TIDAK masuk ke perhitungan Laporan Keuangan mingguan (dana khusus, di
@@ -139,15 +140,4 @@ export function buildLaporanKeuangan(
     adaData: rowsPeriode.length > 0,
     totalBukaPuasa,
   };
-}
-
-/** Daftar periode unik dari data, diurutkan menurun berdasarkan angka "Pekan N". */
-export function listPeriodeOptions(items: FinancialTransaction[]): string[] {
-  const set = new Set(items.map((t) => t.periode));
-  return Array.from(set).sort((a, b) => {
-    const na = Number(a.match(/\d+/)?.[0]);
-    const nb = Number(b.match(/\d+/)?.[0]);
-    if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return nb - na;
-    return b.localeCompare(a);
-  });
 }
