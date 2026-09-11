@@ -3,6 +3,8 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import { parseBriStatement, parseBsiStatement } from "../../lib/bankStatement";
 import { computeRunningSaldo, computeRunningSaldoByJenis, TransactionWithSaldo } from "../../lib/saldo";
+import { KRITERIA_DONASI, KRITERIA_QURBAN, KRITERIA_RAMADHAN } from "../../lib/laporanKeuangan";
+import LaporanKeuanganTab from "./LaporanKeuanganTab";
 import {
   DraftTransaction,
   FINANCIAL_JENIS,
@@ -11,6 +13,23 @@ import {
   FinancialKriteria,
   FinancialTransaction,
 } from "../../types";
+
+function EyeIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
 
 function formatRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
@@ -27,8 +46,9 @@ function formatTanggal(t: string | null) {
   });
 }
 
-type ActiveTab = FinancialJenis | "Rekapitulasi";
-const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi"];
+type ActiveTab = FinancialJenis | "Rekapitulasi" | "Qurban" | "Donasi" | "Ramadhan" | "Laporan";
+const TABS: ActiveTab[] = [...FINANCIAL_JENIS, "Rekapitulasi", "Qurban", "Donasi", "Ramadhan", "Laporan"];
+const PAGE_SIZES = [25, 50, 100] as const;
 
 const emptyManualForm = {
   jenis: "UP Tunai" as FinancialJenis,
@@ -71,6 +91,10 @@ export default function FinancePage() {
   // -- detail transaksi --
   const [detailRow, setDetailRow] = useState<TransactionWithSaldo | null>(null);
 
+  // -- paginasi --
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [page, setPage] = useState(1);
+
   const load = () => {
     setLoading(true);
     supabase
@@ -88,13 +112,44 @@ export default function FinancePage() {
 
   const byJenis = useMemo(() => computeRunningSaldoByJenis(items), [items]);
   const combinedRows = useMemo(() => computeRunningSaldo(items), [items]);
+  const qurbanRows = useMemo(
+    () => computeRunningSaldo(items.filter((t) => KRITERIA_QURBAN.includes(t.kriteria))),
+    [items]
+  );
+  const donasiRows = useMemo(
+    () => computeRunningSaldo(items.filter((t) => KRITERIA_DONASI.includes(t.kriteria))),
+    [items]
+  );
+  const ramadhanRows = useMemo(
+    () => computeRunningSaldo(items.filter((t) => KRITERIA_RAMADHAN.includes(t.kriteria))),
+    [items]
+  );
+
   const isRekap = activeTab === "Rekapitulasi";
-  const currentRows: TransactionWithSaldo[] = isRekap ? combinedRows : byJenis[activeTab] ?? [];
+  const isLaporan = activeTab === "Laporan";
+  const isMultiJenis = isRekap || activeTab === "Qurban" || activeTab === "Donasi" || activeTab === "Ramadhan";
+
+  const currentRows: TransactionWithSaldo[] = isRekap
+    ? combinedRows
+    : activeTab === "Qurban"
+    ? qurbanRows
+    : activeTab === "Donasi"
+    ? donasiRows
+    : activeTab === "Ramadhan"
+    ? ramadhanRows
+    : isLaporan
+    ? []
+    : byJenis[activeTab] ?? [];
   const saldoTerkini = currentRows.length > 0 ? currentRows[currentRows.length - 1].saldo : 0;
+
+  const totalPages = Math.max(1, Math.ceil(currentRows.length / pageSize));
+  const pageRows = currentRows.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [activeTab]);
+    setPage(Math.max(1, Math.ceil(currentRows.length / pageSize)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, pageSize, items.length]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -105,9 +160,16 @@ export default function FinancePage() {
     });
   };
 
-  const allSelected = currentRows.length > 0 && currentRows.every((r) => selectedIds.has(r.id));
+  const allSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
   const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(currentRows.map((r) => r.id)));
+    setSelectedIds((prev) => {
+      if (allSelected) {
+        const next = new Set(prev);
+        pageRows.forEach((r) => next.delete(r.id));
+        return next;
+      }
+      return new Set([...prev, ...pageRows.map((r) => r.id)]);
+    });
   };
 
   const bulkDelete = async () => {
@@ -498,6 +560,10 @@ export default function FinancePage() {
         ))}
       </div>
 
+      {isLaporan ? (
+        <LaporanKeuanganTab items={items} />
+      ) : (
+        <>
       <div className="card mb-3 flex items-center justify-between">
         <span className="text-sm text-gray-500">
           {isRekap ? "Saldo Gabungan (BRI + BSI + UP Tunai) saat ini" : `Saldo ${activeTab} saat ini`}
@@ -525,11 +591,12 @@ export default function FinancePage() {
           <p className="text-sm text-gray-400">Belum ada transaksi untuk {activeTab}.</p>
         )}
         {currentRows.length > 0 && (
+          <div className="max-h-[70vh] overflow-y-auto">
           <table className="w-full text-sm table-fixed">
             <colgroup>
               {canEdit && <col className="w-8" />}
               <col className="w-36" />
-              {isRekap && <col className="w-20" />}
+              {isMultiJenis && <col className="w-20" />}
               <col className="w-24" />
               <col className="w-32" />
               <col />
@@ -539,25 +606,25 @@ export default function FinancePage() {
               <col className="w-24" />
             </colgroup>
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-gray-500 border-b bg-white sticky top-0 z-10 shadow-sm">
                 {canEdit && (
-                  <th className="py-2 pr-2">
+                  <th className="py-2 pr-2 bg-white">
                     <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
                   </th>
                 )}
-                <th className="py-2 pr-3">Tanggal</th>
-                {isRekap && <th className="py-2 pr-3">Jenis</th>}
-                <th className="py-2 pr-3">Periode</th>
-                <th className="py-2 pr-3">Kriteria</th>
-                <th className="py-2 pr-3">Keterangan</th>
-                <th className="py-2 pr-3 text-right">Debet</th>
-                <th className="py-2 pr-3 text-right">Kredit</th>
-                <th className="py-2 pr-3 text-right">Saldo</th>
-                <th className="py-2 pr-3 text-center">Aksi</th>
+                <th className="py-2 pr-3 bg-white">Tanggal</th>
+                {isMultiJenis && <th className="py-2 pr-3 bg-white">Jenis</th>}
+                <th className="py-2 pr-3 bg-white">Periode</th>
+                <th className="py-2 pr-3 bg-white">Kriteria</th>
+                <th className="py-2 pr-3 bg-white">Keterangan</th>
+                <th className="py-2 pr-3 text-right bg-white">Debet</th>
+                <th className="py-2 pr-3 text-right bg-white">Kredit</th>
+                <th className="py-2 pr-3 text-right bg-white">Saldo</th>
+                <th className="py-2 pr-3 text-center bg-white">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {currentRows.map((t) => (
+              {pageRows.map((t) => (
                 <tr key={t.id} className={`border-b last:border-0 ${selectedIds.has(t.id) ? "bg-red-50/50" : ""}`}>
                   {canEdit && (
                     <td className="py-2 pr-2">
@@ -567,7 +634,7 @@ export default function FinancePage() {
                   <td className="py-2 pr-3 truncate" title={formatTanggal(t.tanggal)}>
                     {formatTanggal(t.tanggal)}
                   </td>
-                  {isRekap && (
+                  {isMultiJenis && (
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
                     </td>
@@ -620,8 +687,12 @@ export default function FinancePage() {
                       </>
                     ) : (
                       <>
-                        <button className="mr-2" title="Lihat Detail" onClick={() => setDetailRow(t)}>
-                          👁️
+                        <button
+                          className="mr-2 text-gray-500 hover:text-primary-700 align-middle"
+                          title="Lihat Detail"
+                          onClick={() => setDetailRow(t)}
+                        >
+                          <EyeIcon className="w-4 h-4 inline" />
                         </button>
                         {canEdit && (
                           <>
@@ -640,8 +711,53 @@ export default function FinancePage() {
               ))}
             </tbody>
           </table>
+          </div>
+        )}
+
+        {currentRows.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-1 border-t text-xs text-gray-500">
+            <div className="flex items-center gap-2">
+              <span>Tampilkan</span>
+              <select
+                className="input !w-auto !py-1 !text-xs"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+              >
+                {PAGE_SIZES.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <span>baris / halaman &middot; {currentRows.length} total transaksi</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-secondary !py-1 !px-2 text-xs"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                ‹ Sebelumnya
+              </button>
+              <span>
+                Halaman {page} dari {totalPages}
+              </span>
+              <button
+                className="btn-secondary !py-1 !px-2 text-xs"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Berikutnya ›
+              </button>
+            </div>
+          </div>
         )}
       </div>
+      </>
+      )}
 
       {/* ---- Modal Detail Transaksi ---- */}
       {detailRow && (
