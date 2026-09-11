@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { fetchHijriMap } from "../lib/prayerTimes";
 import { KajianSchedule, KhatibJumatSchedule } from "../types";
 
 type AgendaItem =
@@ -21,6 +22,8 @@ export default function Calendar() {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [kajianMingguan, setKajianMingguan] = useState<KajianSchedule[]>([]);
   const [loading, setLoading] = useState(true);
+  // Tanggal Hijriah khusus untuk jadwal Khatib Jumat.
+  const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     Promise.all([
@@ -40,6 +43,7 @@ export default function Calendar() {
 
       setItems(gabungan);
       setLoading(false);
+      fetchHijriMap(khatib.map((k) => k.tanggal)).then(setHijriMap);
     });
   }, []);
 
@@ -64,7 +68,10 @@ export default function Calendar() {
               {item.tipe === "kajian" ? "Kajian" : "Khatib Jumat"}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-primary-700">{formatTanggal(item.tanggal)}</p>
+              <p className="text-sm font-semibold text-primary-700">
+                {formatTanggal(item.tanggal)}
+                {item.tipe === "khatib" && hijriMap[item.tanggal] && ` · ${hijriMap[item.tanggal]}`}
+              </p>
               {item.tipe === "kajian" ? (
                 <>
                   <p className="font-medium text-gray-800">{item.data.title}</p>

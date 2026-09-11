@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
+import { fetchHijriDate, fetchHijriMap, fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
 import { isYoutubeLiveConfigured } from "../../lib/youtube";
 import { isGoogleDriveConfigured } from "../../lib/googleDrive";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
@@ -452,6 +452,8 @@ function KhatibJumatSettings() {
   const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
   const [form, setForm] = useState(emptyKhatibForm);
   const [saving, setSaving] = useState(false);
+  const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
+  const [hijriFormPreview, setHijriFormPreview] = useState<string | null>(null);
 
   const load = () =>
     supabase
@@ -469,6 +471,28 @@ function KhatibJumatSettings() {
       .then(({ data }) => setUstadzList((data as Ustadz[]) ?? []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tanggal Hijriah tiap jadwal yang sudah ada -- diambil sekaligus (batch),
+  // bukan satu-satu per baris.
+  useEffect(() => {
+    fetchHijriMap(items.map((k) => k.tanggal)).then(setHijriMap);
+  }, [items]);
+
+  // Preview tanggal Hijriah saat memilih Tanggal Khutbah di form tambah.
+  useEffect(() => {
+    if (!form.tanggal) {
+      setHijriFormPreview(null);
+      return;
+    }
+    let alive = true;
+    const [y, m, d] = form.tanggal.split("-").map(Number);
+    fetchHijriDate(new Date(y, m - 1, d)).then((h) => {
+      if (alive) setHijriFormPreview(h);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [form.tanggal]);
 
   const { pollingIds, startLive, checkLiveNow, endLive } = useKajianLive(
     "khatib_jumat_schedule",
@@ -553,7 +577,12 @@ function KhatibJumatSettings() {
             value={form.tanggal}
             onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
           />
-          {form.tanggal && <p className="text-xs text-gray-500 mt-1">{formatTanggalPanjang(form.tanggal)}</p>}
+          {form.tanggal && (
+            <p className="text-xs text-gray-500 mt-1">
+              {formatTanggalPanjang(form.tanggal)}
+              {hijriFormPreview && ` · ${hijriFormPreview}`}
+            </p>
+          )}
         </div>
 
         <div>
@@ -591,7 +620,10 @@ function KhatibJumatSettings() {
                     {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
                     {isToday && <span className="badge bg-gold-500/20 text-gold-700">Hari ini</span>}
                   </div>
-                  <p className="text-xs text-gray-500">{formatTanggalPanjang(k.tanggal)}</p>
+                  <p className="text-xs text-gray-500">
+                    {formatTanggalPanjang(k.tanggal)}
+                    {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
+                  </p>
                   <button
                     className={`badge mt-1 ${
                       k.is_confirmed ? "bg-primary-100 text-primary-700" : "bg-yellow-100 text-yellow-700"

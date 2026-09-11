@@ -27,6 +27,47 @@ function toYMD(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Cache in-memory hasil konversi Masehi->Hijriah per tanggal (key: "YYYY-MM-DD"),
+ * supaya tanggal yang sama tidak di-fetch berulang-ulang ke API (dipakai lintas
+ * komponen, mis. daftar Jadwal Khatib Jumat). */
+const hijriCache = new Map<string, string | null>();
+
+/** Ambil tanggal Hijriah untuk SATU tanggal Masehi tertentu saja (lebih ringan
+ * dari fetchPrayerTimes karena tidak perlu hitung jadwal shalat lengkap).
+ * Dipakai di tempat yang cuma butuh tanggal Hijriah, mis. Jadwal Khatib Jumat. */
+export async function fetchHijriDate(date: Date): Promise<string | null> {
+  const key = toYMD(date);
+  if (hijriCache.has(key)) return hijriCache.get(key)!;
+  const dmy = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
+  try {
+    const res = await fetch(`https://api.aladhan.com/v1/gToH/${dmy}`);
+    if (!res.ok) throw new Error("Gagal mengambil tanggal Hijriah");
+    const json = await res.json();
+    const h = json.data?.hijri;
+    const result: string | null = h ? `${h.day} ${h.month.en} ${h.year} H` : null;
+    hijriCache.set(key, result);
+    return result;
+  } catch {
+    hijriCache.set(key, null);
+    return null;
+  }
+}
+
+/** Ambil tanggal Hijriah untuk BANYAK tanggal Masehi ("YYYY-MM-DD") sekaligus,
+ * hasilnya berupa peta tanggal->Hijriah -- dipakai untuk render daftar/list
+ * supaya tiap baris tidak perlu fetch satu-satu secara berurutan. Tanggal
+ * yang sudah pernah diambil sebelumnya otomatis dari cache (lihat hijriCache). */
+export async function fetchHijriMap(dates: (string | null | undefined)[]): Promise<Record<string, string | null>> {
+  const unique = Array.from(new Set(dates.filter((d): d is string => !!d)));
+  const pairs = await Promise.all(
+    unique.map(async (ymd) => {
+      const [y, m, d] = ymd.split("-").map(Number);
+      return [ymd, await fetchHijriDate(new Date(y, m - 1, d))] as const;
+    })
+  );
+  return Object.fromEntries(pairs);
+}
+
 export async function fetchPrayerTimes(date: Date = new Date()): Promise<PrayerTimesResult> {
   const dmy = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
   const url = `https://api.aladhan.com/v1/timings/${dmy}?latitude=${DENPASAR_LAT}&longitude=${DENPASAR_LON}&method=${METHOD}&timezonestring=Asia/Makassar`;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { fetchHijriMap } from "../lib/prayerTimes";
 import { KhatibJumatSchedule } from "../types";
 
 function formatTanggal(tgl: string) {
@@ -12,6 +13,7 @@ function formatTanggal(tgl: string) {
 export default function KhatibJumatList() {
   const [items, setItems] = useState<KhatibJumatSchedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     supabase
@@ -20,8 +22,10 @@ export default function KhatibJumatList() {
       .eq("is_active", true)
       .order("tanggal", { ascending: true })
       .then(({ data }) => {
-        setItems((data as KhatibJumatSchedule[]) ?? []);
+        const rows = (data as KhatibJumatSchedule[]) ?? [];
+        setItems(rows);
         setLoading(false);
+        fetchHijriMap(rows.map((k) => k.tanggal)).then(setHijriMap);
       });
   }, []);
 
@@ -39,7 +43,10 @@ export default function KhatibJumatList() {
               <p className="font-medium text-gray-800">{k.nama_ustadz}</p>
               {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
             </div>
-            <p className="text-sm font-semibold text-primary-700 mt-0.5">{formatTanggal(k.tanggal)}</p>
+            <p className="text-sm font-semibold text-primary-700 mt-0.5">
+              {formatTanggal(k.tanggal)}
+              {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
+            </p>
             {k.live_video_id && (
               <div className="mt-3 aspect-video rounded-lg overflow-hidden border border-gray-100">
                 <iframe
