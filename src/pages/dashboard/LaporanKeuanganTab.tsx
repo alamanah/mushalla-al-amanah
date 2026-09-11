@@ -66,10 +66,17 @@ export default function LaporanKeuanganTab({ items, bukaPuasaItems, showControls
 
       {laporan && (
         <div className="print-area card !p-0 overflow-hidden border border-primary-100 shadow-sm">
-          {/* Kop laporan */}
-          <div className="bg-primary-900 text-white text-center py-5 px-4">
-            <h2 className="font-serif text-xl font-bold">Laporan Keuangan Mushalla Al Amanah</h2>
-            <p className="text-sm text-white/70">Gedung Keuangan Negara I Denpasar</p>
+          {/* Kop laporan -- logo di kiri (ikut tercetak di PDF karena ada di dalam .print-area) */}
+          <div className="bg-primary-900 text-white py-5 px-4 flex items-center gap-4">
+            <img
+              src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
+              className="h-14 w-auto rounded bg-white p-1 shrink-0"
+              alt="Logo Mushalla Al Amanah"
+            />
+            <div className="flex-1 text-center">
+              <h2 className="font-serif text-xl font-bold">Laporan Keuangan Mushalla Al Amanah</h2>
+              <p className="text-sm text-white/70">Gedung Keuangan Negara I Denpasar</p>
+            </div>
           </div>
 
           <div className="p-6 space-y-6">

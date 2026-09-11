@@ -26,9 +26,11 @@ export default function Navbar() {
     <header className="bg-primary-900 text-white sticky top-0 z-40 shadow pt-[max(20px,env(safe-area-inset-top))]">
       <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2 font-serif font-bold text-lg">
-          <img src={`${import.meta.env.BASE_URL}mosque.svg`} className="h-8 w-8" alt="Logo Mushalla Al Amanah" />
-          <span className="hidden sm:inline">Mushalla Al Amanah</span>
-          <span className="sm:hidden">Al Amanah</span>
+          <img
+            src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
+            className="h-11 w-auto rounded bg-white p-1"
+            alt="Logo Mushalla Al Amanah"
+          />
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">

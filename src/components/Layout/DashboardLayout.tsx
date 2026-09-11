@@ -34,8 +34,11 @@ export default function DashboardLayout() {
     <div className="min-h-screen flex bg-gray-50">
       <aside className="hidden sm:flex w-60 bg-primary-950 text-white flex-col shrink-0">
         <Link to="/" className="flex items-center gap-2 px-4 h-16 border-b border-white/10 font-serif font-bold">
-          <img src={`${import.meta.env.BASE_URL}mosque.svg`} className="h-7 w-7" alt="" />
-          Al Amanah
+          <img
+            src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
+            className="h-10 w-auto rounded bg-white p-1"
+            alt="Logo Mushalla Al Amanah"
+          />
         </Link>
         <nav className="flex-1 py-4 flex flex-col gap-1 px-2 text-sm">
           {items
