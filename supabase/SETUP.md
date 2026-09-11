@@ -221,6 +221,47 @@ di beranda pada jadwal kajian tersebut. Tombol **"Mulai Live"** di tabel jadwal 
 dipakai untuk langsung membuka YouTube Studio (memulai siaran) sekaligus mencatat siapa
 yang menekannya dan jam berapa.
 
+## 6. (Opsional) Upload Pamflet otomatis ke Google Drive
+
+Fitur ini menambahkan tombol **"Upload ke Google Drive"** di form Pamflet (Dashboard →
+Pengaturan Konten → Jadwal Kajian): tinggal pilih gambar dari HP/komputer, otomatis
+diunggah ke folder **"Pamflet"** di Google Drive (dibuat otomatis kalau belum ada),
+dibagikan "siapa saja yang punya link", dan link-nya otomatis tersimpan -- tidak perlu
+lagi buka Google Drive manual lalu tempel link. Ini opsional -- kalau langkah ini
+dilewati, form Pamflet tetap bisa dipakai dengan cara tempel link manual seperti biasa.
+
+Bisa pakai project Google Cloud yang sama dengan langkah nomor 5 (Live YouTube) di atas,
+atau buat project baru:
+
+1. Buka https://console.cloud.google.com/ → pilih/buat project (nama bebas).
+2. Menu **APIs & Services → Library**, cari **"Google Drive API"**, klik **Enable**.
+3. Menu **APIs & Services → OAuth consent screen**:
+   - **User Type**: pilih **External**, klik **Create**.
+   - Isi **App name** (mis. "Website Al Amanah"), **User support email**, dan **Developer
+     contact email** (email kamu sendiri) → **Save and Continue**.
+   - Di halaman **Scopes**, klik **Add or Remove Scopes**, cari/tempel
+     `https://www.googleapis.com/auth/drive.file` → centang → **Update** → **Save and Continue**.
+   - Di halaman **Test users**, klik **Add Users** → masukkan alamat Gmail akun pengurus
+     (humas/admin) yang akan dipakai untuk upload pamflet → **Save and Continue**.
+   - Biarkan status app **"Testing"** (tidak perlu di-publish/verifikasi Google) -- cukup
+     untuk beberapa akun pengurus yang sudah ditambahkan sebagai Test user di atas.
+4. Menu **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
+   - **Application type**: **Web application**.
+   - Di **Authorized JavaScript origins**, klik **Add URI** → tambahkan alamat website kamu,
+     contoh: `https://<username-github>.github.io` (tanpa `/` atau path di belakangnya).
+   - Klik **Create**. Salin **Client ID** yang muncul (bukan Client secret, tidak dipakai) --
+     ini nilai **`VITE_GOOGLE_CLIENT_ID`**.
+5. Tambahkan nilai ini sebagai **GitHub Actions secret** (Settings → Secrets and variables →
+   Actions → New repository secret), sama seperti secret lainnya:
+   - `VITE_GOOGLE_CLIENT_ID`
+6. Push ulang (atau re-run GitHub Actions workflow-nya) supaya nilai baru ini ikut ter-build.
+
+Cara pakai: klik **"Upload ke Google Drive"**, pilih gambar pamflet, lalu pertama kali
+akan muncul jendela login/izin Google -- pilih akun Gmail yang sudah ditambahkan sebagai
+**Test user** di langkah 3, lalu izinkan. File otomatis masuk folder "Pamflet" di Drive
+akun tersebut, dan pamflet langsung tampil di beranda. Login ini diminta ulang lagi
+setiap kurang lebih 1 jam tidak dipakai (wajar, bukan error).
+
 ---
 
 ## Ringkasan Role & Hak Akses

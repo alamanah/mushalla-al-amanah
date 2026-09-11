@@ -15,7 +15,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 py-16 text-center">
           <img
             src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
-            className="h-24 w-auto mx-auto mb-4 rounded-lg bg-white p-2"
+            className="h-24 w-auto mx-auto mb-4"
             alt="Logo Mushalla Al Amanah"
           />
           <h1 className="font-serif text-3xl sm:text-4xl font-bold mb-3">Mushalla Al Amanah</h1>

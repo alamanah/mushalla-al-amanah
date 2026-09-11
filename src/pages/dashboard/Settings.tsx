@@ -2,8 +2,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
 import { isYoutubeLiveConfigured } from "../../lib/youtube";
+import { isGoogleDriveConfigured } from "../../lib/googleDrive";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
+import UploadPamfletButton from "../../components/UploadPamfletButton";
 import {
   AboutContent,
   InfaqInfo,
@@ -297,16 +299,23 @@ function KajianSettings() {
         </div>
 
         <div>
-          <label className="label">Link Pamflet (Google Drive, opsional)</label>
+          <label className="label">Pamflet (opsional)</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <UploadPamfletButton onUploaded={(link) => setForm((f) => ({ ...f, foto_url: link }))} />
+            {isGoogleDriveConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
+          </div>
           <input
-            className="input"
+            className="input mt-2"
             placeholder="https://drive.google.com/file/d/..."
             value={form.foto_url}
             onChange={(e) => setForm({ ...form, foto_url: e.target.value })}
           />
-          <p className="text-[11px] text-gray-400 mt-1">
-            Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di sini.
-          </p>
+          {!isGoogleDriveConfigured() && (
+            <p className="text-[11px] text-gray-400 mt-1">
+              Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di
+              sini.
+            </p>
+          )}
         </div>
 
         <button className="btn-primary sm:col-span-3" disabled={saving}>
@@ -397,19 +406,25 @@ function KajianSettings() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="card max-w-sm w-full">
             <h3 className="font-semibold text-gray-800 mb-1">{photoItem.title}</h3>
-            <p className="text-xs text-gray-500 mb-3">
-              Tempel link Google Drive gambar pamflet (akses "Siapa saja yang memiliki link"), akan tampil di beranda
-              pada jadwal kajian ini.
-            </p>
+            <p className="text-xs text-gray-500 mb-3">Gambar pamflet ini akan tampil di beranda pada jadwal kajian ini.</p>
+            <div className="mb-2">
+              <UploadPamfletButton onUploaded={(link) => setPhotoLinkInput(link)} />
+            </div>
             {driveImageUrl(photoLinkInput) && (
               <img src={driveImageUrl(photoLinkInput)!} alt="" className="w-full rounded-lg mb-3 border border-gray-100" />
             )}
+            {isGoogleDriveConfigured() && <p className="text-[11px] text-gray-400 mb-1">atau tempel link manual:</p>}
             <input
               className="input"
               placeholder="https://drive.google.com/file/d/..."
               value={photoLinkInput}
               onChange={(e) => setPhotoLinkInput(e.target.value)}
             />
+            {!isGoogleDriveConfigured() && (
+              <p className="text-[11px] text-gray-400 mt-1">
+                Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di sini.
+              </p>
+            )}
             <div className="flex gap-2 mt-3">
               <button className="btn-primary flex-1" disabled={photoSaving} onClick={savePhotoLink}>
                 {photoSaving ? "Menyimpan..." : "Simpan Link"}
@@ -483,6 +498,14 @@ function KhatibJumatSettings() {
 
   const toggleActive = async (id: string, active: boolean) => {
     await supabase.from("khatib_jumat_schedule").update({ is_active: !active }).eq("id", id);
+    load();
+  };
+
+  // Status konfirmasi kehadiran khatib -- default "Belum Dikonfirmasi" saat
+  // jadwal dibuat, diklik humas untuk menandai "Terkonfirmasi" setelah
+  // khatib bersangkutan memastikan kehadirannya.
+  const toggleConfirmed = async (id: string, confirmed: boolean) => {
+    await supabase.from("khatib_jumat_schedule").update({ is_confirmed: !confirmed }).eq("id", id);
     load();
   };
 
@@ -569,6 +592,14 @@ function KhatibJumatSettings() {
                     {isToday && <span className="badge bg-gold-500/20 text-gold-700">Hari ini</span>}
                   </div>
                   <p className="text-xs text-gray-500">{formatTanggalPanjang(k.tanggal)}</p>
+                  <button
+                    className={`badge mt-1 ${
+                      k.is_confirmed ? "bg-primary-100 text-primary-700" : "bg-yellow-100 text-yellow-700"
+                    }`}
+                    onClick={() => toggleConfirmed(k.id, k.is_confirmed)}
+                  >
+                    {k.is_confirmed ? "✓ Terkonfirmasi" : "Belum Dikonfirmasi"}
+                  </button>
                   {k.link_youtube && (
                     <a
                       href={k.link_youtube}

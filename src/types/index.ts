@@ -44,6 +44,8 @@ export interface KhatibJumatSchedule {
   live_by_name: string | null;
   live_started_at: string | null;
   is_active: boolean;
+  /** Status konfirmasi kehadiran khatib -- default false ("Belum Dikonfirmasi"). */
+  is_confirmed: boolean;
   created_at: string;
 }
 

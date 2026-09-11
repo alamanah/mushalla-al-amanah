@@ -70,7 +70,7 @@ export default function LaporanKeuanganTab({ items, bukaPuasaItems, showControls
           <div className="bg-primary-900 text-white py-5 px-4 flex items-center gap-4">
             <img
               src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
-              className="h-14 w-auto rounded bg-white p-1 shrink-0"
+              className="h-14 w-auto shrink-0"
               alt="Logo Mushalla Al Amanah"
             />
             <div className="flex-1 text-center">

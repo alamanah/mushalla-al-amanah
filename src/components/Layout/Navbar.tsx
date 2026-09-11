@@ -28,7 +28,7 @@ export default function Navbar() {
         <Link to="/" className="flex items-center gap-2 font-serif font-bold text-lg">
           <img
             src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
-            className="h-11 w-auto rounded bg-white p-1"
+            className="h-11 w-auto"
             alt="Logo Mushalla Al Amanah"
           />
         </Link>

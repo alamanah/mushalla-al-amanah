@@ -36,7 +36,7 @@ export default function DashboardLayout() {
         <Link to="/" className="flex items-center gap-2 px-4 h-16 border-b border-white/10 font-serif font-bold">
           <img
             src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
-            className="h-10 w-auto rounded bg-white p-1"
+            className="h-10 w-auto"
             alt="Logo Mushalla Al Amanah"
           />
         </Link>

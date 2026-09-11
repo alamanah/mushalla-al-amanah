@@ -37,6 +37,8 @@ jobs:
           # Opsional -- untuk deteksi otomatis Live YouTube (lihat supabase/SETUP.md).
           VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
           VITE_YOUTUBE_CHANNEL_ID: ${{ secrets.VITE_YOUTUBE_CHANNEL_ID }}
+          # Opsional -- untuk tombol "Upload ke Google Drive" di Pamflet Jadwal Kajian (lihat supabase/SETUP.md).
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           # Base path otomatis diisi nama repo, misal: /mushalla-al-amanah/
           BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build
