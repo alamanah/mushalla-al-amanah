@@ -2,18 +2,27 @@
 // sesuai ukuran kartu Jadwal Kajian di beranda) digambar langsung di
 // <canvas> browser dari data kajian yang sudah diisi admin (judul, ustadz,
 // tanggal, jam, lokasi) digabung data yang sudah ada di aplikasi (rekening
-// Infaq, kontak WhatsApp & platform live dari Media Sosial). Latar
-// belakangnya BUKAN hasil unduh dari internet (lihat catatan di README/chat)
-// -- semua digambar sendiri lewat kode (gradasi warna + motif garis + hiasan
-// sudut sederhana) supaya tidak tergantung sumber gambar pihak ketiga dan
-// selalu konsisten bentuknya walau isi teksnya beda-beda panjang.
+// Infaq, kontak WhatsApp & platform live dari Media Sosial). Semua elemen
+// visual (bingkai, motif, siluet masjid) digambar sendiri lewat kode --
+// BUKAN hasil unduh/scrape dari internet (mis. Pinterest) -- supaya tidak
+// ada masalah hak cipta dan selalu konsisten bentuknya walau isi teksnya
+// beda-beda panjang. Ada 2 pilihan template (lihat PamfletTemplate):
+// "ornate" (bingkai emas, versi awal) dan "kajian-rutin" (ilustrasi siluet
+// masjid + langit senja, sesuai referensi yang diminta admin).
 //
-// Hasil akhirnya di-convert ke Blob (PNG) lalu dikirim ke alur upload yang
+// Hasil akhirnya di-convert ke Blob (JPEG) lalu dikirim ke alur upload yang
 // sudah ada (uploadPamfletToDrive, lihat pamfletUpload.ts) -- generator ini
 // sendiri tidak melakukan upload apa pun, cuma menggambar.
 
 const WIDTH = 1200;
 const HEIGHT = 750;
+
+export type PamfletTemplate = "ornate" | "kajian-rutin";
+
+export const PAMFLET_TEMPLATE_LABELS: Record<PamfletTemplate, string> = {
+  ornate: "Kajian Tematik (bingkai emas)",
+  "kajian-rutin": "Kajian Rutin (ilustrasi masjid)",
+};
 
 export interface PamfletRekening {
   bank_name: string;
@@ -39,7 +48,7 @@ export interface PamfletData {
   orgName: string;
 }
 
-interface Palette {
+interface OrnatePalette {
   name: string;
   bgFrom: string;
   bgTo: string;
@@ -47,12 +56,46 @@ interface Palette {
   goldDeep: string;
 }
 
-export const PAMFLET_PALETTES: Palette[] = [
+export const PAMFLET_PALETTES: OrnatePalette[] = [
   { name: "Navy Emas", bgFrom: "#0b1f3f", bgTo: "#16305c", gold: "#f0d99a", goldDeep: "#d4af37" },
   { name: "Hijau Klasik", bgFrom: "#052b1b", bgTo: "#0d4e32", gold: "#f0d99a", goldDeep: "#d4af37" },
   { name: "Maroon Elegan", bgFrom: "#3b0a14", bgTo: "#5c0f1f", gold: "#f0d99a", goldDeep: "#d4af37" },
   { name: "Teal Malam", bgFrom: "#042f2e", bgTo: "#0f4c4a", gold: "#f0d99a", goldDeep: "#d4af37" },
 ];
+
+interface KajianRutinPalette {
+  name: string;
+  skyTop: string;
+  skyMid: string;
+  skyBottom: string;
+  silhouette: string;
+  card: string;
+  accent: string;
+}
+
+export const KAJIAN_RUTIN_PALETTES: KajianRutinPalette[] = [
+  { name: "Senja Emas", skyTop: "#0f1a30", skyMid: "#4d3a24", skyBottom: "#e7b566", silhouette: "#0a1220", card: "#1f6f4a", accent: "#f0d99a" },
+  { name: "Senja Biru", skyTop: "#0c1730", skyMid: "#233458", skyBottom: "#93add8", silhouette: "#08101f", card: "#1b4f72", accent: "#dbe8f7" },
+  { name: "Senja Hijau", skyTop: "#0b241d", skyMid: "#1c4a3a", skyBottom: "#b9d7a8", silhouette: "#071712", card: "#14532d", accent: "#dcedd0" },
+];
+
+function normIndex(i: number, len: number): number {
+  return ((i % len) + len) % len;
+}
+
+/** Berapa banyak pilihan tema warna yang tersedia untuk 1 template --
+ * dipakai UI supaya tombol "Buat Ulang" tahu batas siklusnya. */
+export function paletteCount(template: PamfletTemplate): number {
+  return template === "kajian-rutin" ? KAJIAN_RUTIN_PALETTES.length : PAMFLET_PALETTES.length;
+}
+
+/** Nama tema warna ke-`index` untuk 1 template -- ditampilkan di pratinjau. */
+export function paletteName(template: PamfletTemplate, index: number): string {
+  if (template === "kajian-rutin") {
+    return KAJIAN_RUTIN_PALETTES[normIndex(index, KAJIAN_RUTIN_PALETTES.length)].name;
+  }
+  return PAMFLET_PALETTES[normIndex(index, PAMFLET_PALETTES.length)].name;
+}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -61,6 +104,22 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error(`Gagal memuat gambar: ${src}`));
     img.src = src;
   });
+}
+
+/** Ubah gambar (mis. logo PNG berwarna) jadi versi siluet putih polos --
+ * bagian yang tidak transparan diwarnai putih, bentuk/transparansi asli
+ * tetap dipertahankan. Dipakai supaya logo tetap kebaca di atas latar foto
+ * gelap tanpa perlu file logo versi putih terpisah. */
+function tintImageWhite(img: HTMLImageElement): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  const cctx = c.getContext("2d")!;
+  cctx.drawImage(img, 0, 0);
+  cctx.globalCompositeOperation = "source-in";
+  cctx.fillStyle = "#ffffff";
+  cctx.fillRect(0, 0, c.width, c.height);
+  return c;
 }
 
 let amiriRequested = false;
@@ -139,6 +198,94 @@ function drawCornerOrnament(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.restore();
 }
 
+/** Siluet kubah masjid sederhana -- ilustrasi buatan sendiri (bukan foto),
+ * dipakai sebagai latar template "Kajian Rutin". */
+function drawDome(ctx: CanvasRenderingContext2D, cx: number, baseY: number, width: number, height: number) {
+  ctx.beginPath();
+  ctx.moveTo(cx - width / 2, baseY);
+  ctx.quadraticCurveTo(cx - width / 2, baseY - height, cx, baseY - height);
+  ctx.quadraticCurveTo(cx + width / 2, baseY - height, cx + width / 2, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - 3, baseY - height + 4);
+  ctx.lineTo(cx, baseY - height - 22);
+  ctx.lineTo(cx + 3, baseY - height + 4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMinaret(ctx: CanvasRenderingContext2D, cx: number, baseY: number, height: number) {
+  const w = 22;
+  ctx.fillRect(cx - w / 2, baseY - height, w, height);
+  ctx.beginPath();
+  ctx.arc(cx, baseY - height, w / 1.4, Math.PI, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - 2, baseY - height - w / 1.4);
+  ctx.lineTo(cx, baseY - height - w / 1.4 - 18);
+  ctx.lineTo(cx + 2, baseY - height - w / 1.4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMosqueSilhouette(ctx: CanvasRenderingContext2D, color: string) {
+  const baseY = HEIGHT * 0.87;
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.94;
+  ctx.fillRect(0, baseY, WIDTH, HEIGHT - baseY);
+  drawDome(ctx, WIDTH / 2, baseY, 170, 140);
+  drawDome(ctx, WIDTH / 2 - 230, baseY, 100, 82);
+  drawDome(ctx, WIDTH / 2 + 230, baseY, 100, 82);
+  drawMinaret(ctx, 120, baseY, 270);
+  drawMinaret(ctx, WIDTH - 120, baseY, 270);
+  ctx.restore();
+}
+
+/** Ikon kalender sederhana (garis, bukan emoji) supaya senada dengan gaya
+ * ikon lain di situs -- x/y = pojok kiri-atas kotak pembungkus, size = sisi
+ * kotak pembungkus. */
+function drawCalendarIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1.4, size * 0.08);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  roundedRectPath(ctx, x, y + size * 0.18, size, size * 0.78, size * 0.12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y + size * 0.42);
+  ctx.lineTo(x + size, y + size * 0.42);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.26, y);
+  ctx.lineTo(x + size * 0.26, y + size * 0.3);
+  ctx.moveTo(x + size * 0.74, y);
+  ctx.lineTo(x + size * 0.74, y + size * 0.3);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Ikon pin lokasi (path sama dengan IconMapPin di components/icons.tsx,
+ * digambar ulang di canvas lewat Path2D supaya bentuknya konsisten). */
+function drawMapPinIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size / 24, size / 24);
+  const path = new Path2D("M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z");
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke(path);
+  ctx.beginPath();
+  ctx.arc(12, 9.5, 2.6, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
@@ -188,12 +335,10 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return `${t}…`;
 }
 
-/** Gambar satu pamflet kajian ke canvas lalu kembalikan sebagai Blob PNG.
+/** Gambar satu pamflet kajian ke canvas lalu kembalikan sebagai Blob JPEG.
  * `paletteIndex` di-modulo otomatis, jadi aman dipanggil dengan indeks
  * berapa pun (dipakai tombol "Buat Ulang" untuk siklus ganti tema warna). */
-export async function generatePamfletImage(data: PamfletData, paletteIndex = 0): Promise<Blob> {
-  const palette = PAMFLET_PALETTES[((paletteIndex % PAMFLET_PALETTES.length) + PAMFLET_PALETTES.length) % PAMFLET_PALETTES.length];
-
+export async function generatePamfletImage(data: PamfletData, template: PamfletTemplate, paletteIndex = 0): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -203,6 +348,35 @@ export async function generatePamfletImage(data: PamfletData, paletteIndex = 0):
   const arabicFont = await ensureAmiriFont();
   await document.fonts.load("700 40px Inter").catch(() => undefined);
 
+  if (template === "kajian-rutin") {
+    const palette = KAJIAN_RUTIN_PALETTES[normIndex(paletteIndex, KAJIAN_RUTIN_PALETTES.length)];
+    await drawKajianRutinTemplate(ctx, data, palette, arabicFont);
+  } else {
+    const palette = PAMFLET_PALETTES[normIndex(paletteIndex, PAMFLET_PALETTES.length)];
+    await drawOrnateTemplate(ctx, data, palette, arabicFont);
+  }
+
+  // JPEG (bukan PNG) sengaja dipilih di sini -- ukuran filenya jauh lebih
+  // kecil untuk gambar sekompleks ini (latar gradasi+tekstur), jadi upload
+  // ke Drive lebih cepat & lebih jarang gagal di koneksi lambat. Kualitas
+  // visualnya tidak kelihatan bedanya karena tidak ada bagian yang perlu
+  // transparan.
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Gagal membuat gambar pamflet."));
+      },
+      "image/jpeg",
+      0.92
+    );
+  });
+}
+
+// ============================================================================
+// Template 1: "ornate" -- bingkai emas ganda, panel judul putih (versi awal).
+// ============================================================================
+async function drawOrnateTemplate(ctx: CanvasRenderingContext2D, data: PamfletData, palette: OrnatePalette, arabicFont: string) {
   // ---- Latar belakang ----
   const bgGrad = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
   bgGrad.addColorStop(0, palette.bgFrom);
@@ -242,6 +416,7 @@ export async function generatePamfletImage(data: PamfletData, paletteIndex = 0):
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   ctx.fillText(badgeText, badgeX + 24, badgeY + 17);
+  ctx.textBaseline = "alphabetic";
 
   // ---- Logo + nama mushola (kanan atas) ----
   try {
@@ -379,46 +554,215 @@ export async function generatePamfletImage(data: PamfletData, paletteIndex = 0):
   const col2X = 60 + colW;
   const col3X = 60 + colW * 2;
 
-  label2(ctx, "Rekening Infaq", col1X, footerY + 30, palette);
+  const footerLabel = (text: string, x: number, y: number) => {
+    ctx.fillStyle = palette.gold;
+    ctx.font = "700 13px Inter";
+    ctx.textAlign = "left";
+    ctx.fillText(text.toUpperCase(), x, y);
+  };
+  const footerLine = (text: string, x: number, y: number, maxWidth: number, size = 16) => {
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `600 ${size}px Inter`;
+    ctx.fillText(truncate(ctx, text, maxWidth), x, y);
+  };
+
+  footerLabel("Rekening Infaq", col1X, footerY + 30);
   if (data.rekening.length === 0) {
-    smallLine(ctx, "Belum ada rekening aktif.", col1X, footerY + 56, colW - 20);
+    footerLine("Belum ada rekening aktif.", col1X, footerY + 56, colW - 20);
   } else {
     data.rekening.slice(0, 2).forEach((r, i) => {
-      smallLine(ctx, `${r.bank_name}: ${r.account_number}`, col1X, footerY + 56 + i * 22, colW - 20);
+      footerLine(`${r.bank_name}: ${r.account_number}`, col1X, footerY + 56 + i * 22, colW - 20);
     });
   }
 
-  label2(ctx, "Informasi & Konfirmasi", col2X, footerY + 30, palette);
-  smallLine(ctx, data.whatsapp ?? "-", col2X, footerY + 56, colW - 20, 18);
+  footerLabel("Informasi & Konfirmasi", col2X, footerY + 30);
+  footerLine(data.whatsapp ?? "-", col2X, footerY + 56, colW - 20, 18);
 
-  label2(ctx, "Live Streaming", col3X, footerY + 30, palette);
-  smallLine(ctx, data.livePlatforms.length ? data.livePlatforms.join(" & ") : "-", col3X, footerY + 56, colW - 20, 18);
+  footerLabel("Live Streaming", col3X, footerY + 30);
+  footerLine(data.livePlatforms.length ? data.livePlatforms.join(" & ") : "-", col3X, footerY + 56, colW - 20, 18);
   ctx.fillStyle = "#c9c9d6";
   ctx.font = "400 13px Inter";
   ctx.fillText(truncate(ctx, data.orgName, colW - 20), col3X, footerY + 82);
-
-  // JPEG (bukan PNG) sengaja dipilih di sini -- ukuran filenya jauh lebih
-  // kecil untuk gambar sekompleks ini (latar gradasi+tekstur), jadi upload
-  // ke Drive lebih cepat & lebih jarang gagal di koneksi lambat. Kualitas
-  // visualnya tidak kelihatan bedanya karena tidak ada bagian yang perlu
-  // transparan.
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Gagal membuat gambar pamflet."));
-    }, "image/jpeg", 0.92);
-  });
 }
 
-function label2(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, palette: Palette) {
-  ctx.fillStyle = palette.gold;
-  ctx.font = "700 13px Inter";
-  ctx.textAlign = "left";
-  ctx.fillText(text.toUpperCase(), x, y);
-}
+// ============================================================================
+// Template 2: "kajian-rutin" -- ilustrasi siluet masjid + langit senja,
+// logo putih di tengah atas, kartu jadwal/lokasi hijau/biru.
+// ============================================================================
+async function drawKajianRutinTemplate(
+  ctx: CanvasRenderingContext2D,
+  data: PamfletData,
+  palette: KajianRutinPalette,
+  arabicFont: string
+) {
+  const centerX = WIDTH / 2;
 
-function smallLine(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, size = 16) {
+  // ---- Langit senja (ilustrasi, bukan foto) ----
+  const sky = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+  sky.addColorStop(0, palette.skyTop);
+  sky.addColorStop(0.55, palette.skyMid);
+  sky.addColorStop(1, palette.skyBottom);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  // Bintang kecil di langit atas -- dekorasi ringan.
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  for (let i = 0; i < 46; i++) {
+    const sx = ((i * 953) % WIDTH) + ((i * 37) % 17);
+    const sy = ((i * 211) % (HEIGHT * 0.32)) + 8;
+    ctx.beginPath();
+    ctx.arc(sx, sy, i % 5 === 0 ? 1.4 : 0.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ---- Siluet masjid ----
+  drawMosqueSilhouette(ctx, palette.silhouette);
+
+  // ---- Overlay gradasi gelap supaya teks tetap terbaca di segala tema ----
+  const overlay = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+  overlay.addColorStop(0, "rgba(0,0,0,0.45)");
+  overlay.addColorStop(0.38, "rgba(0,0,0,0.1)");
+  overlay.addColorStop(0.68, "rgba(0,0,0,0.2)");
+  overlay.addColorStop(1, "rgba(0,0,0,0.5)");
+  ctx.fillStyle = overlay;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  let y = 56;
+
+  // ---- Logo putih di tengah atas ----
+  try {
+    const logo = await loadImage(`${import.meta.env.BASE_URL}logo-al-amanah.png`);
+    const whiteLogo = tintImageWhite(logo);
+    const h = 44;
+    const w = (h * whiteLogo.width) / whiteLogo.height;
+    ctx.drawImage(whiteLogo, centerX - w / 2, y - h * 0.8, w, h);
+  } catch {
+    // Diam-diam lewati logo kalau gagal dimuat.
+  }
+  y += 40;
+
+  // ---- Bismillah ----
   ctx.fillStyle = "#ffffff";
-  ctx.font = `600 ${size}px Inter`;
-  ctx.fillText(truncate(ctx, text, maxWidth), x, y);
+  ctx.font = `700 32px ${arabicFont}`;
+  ctx.fillText("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", centerX, y);
+  y += 50;
+
+  // ---- Judul ----
+  ctx.font = "700 42px Inter";
+  const fitted = fitText(ctx, data.title, 780, 2, "700", "Inter", 42, 26);
+  ctx.fillStyle = "#fffdf6";
+  const titleLineHeight = fitted.size * 1.16;
+  fitted.lines.forEach((line, i) => {
+    ctx.font = `700 ${fitted.size}px Inter`;
+    ctx.fillText(line, centerX, y + i * titleLineHeight);
+  });
+  y += (fitted.lines.length - 1) * titleLineHeight + 20;
+
+  // ---- "bersama: nama ustadz" + Hafidzahullahu ----
+  if (data.ustadz) {
+    ctx.font = "400 15px Inter";
+    ctx.fillStyle = palette.accent;
+    ctx.fillText("bersama:", centerX, y);
+    y += 30;
+
+    ctx.font = "700 22px Inter";
+    const nameText = truncate(ctx, data.ustadz, 640);
+    const nameW = ctx.measureText(nameText).width;
+    const pillPadX = 22;
+    const pillH = 38;
+    roundedRectPath(ctx, centerX - nameW / 2 - pillPadX, y - pillH + 10, nameW + pillPadX * 2, pillH, 9);
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(nameText, centerX, y);
+    y += 34;
+
+    ctx.font = "italic 400 16px Inter";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillText("Hafidzahullahu", centerX, y);
+    y += 30;
+  } else {
+    y += 12;
+  }
+
+  // ---- Kartu jadwal (kalender) + lokasi (map) ----
+  const cardW = 800;
+  const cardX = centerX - cardW / 2;
+  const cardY = y;
+  const cardH = 92;
+  ctx.fillStyle = palette.card;
+  roundedRectPath(ctx, cardX, cardY, cardW, cardH, 16);
+  ctx.fill();
+
+  const midX = cardX + cardW / 2;
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(midX, cardY + 16);
+  ctx.lineTo(midX, cardY + cardH - 16);
+  ctx.stroke();
+
+  ctx.textAlign = "left";
+  const colInnerW = cardW / 2 - 90;
+
+  drawCalendarIcon(ctx, cardX + 28, cardY + cardH / 2 - 15, 28, "#ffffff");
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 17px Inter";
+  ctx.fillText(truncate(ctx, data.dateLabel, colInnerW), cardX + 68, cardY + cardH / 2 - 4);
+  ctx.font = "400 13px Inter";
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  const subLine = [data.timeText, data.hijriLabel].filter(Boolean).join(" · ");
+  ctx.fillText(truncate(ctx, subLine, colInnerW), cardX + 68, cardY + cardH / 2 + 18);
+
+  drawMapPinIcon(ctx, midX + 28, cardY + cardH / 2 - 15, 28, "#ffffff");
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 17px Inter";
+  const locLines = wrapText(ctx, data.location ?? "-", colInnerW).slice(0, 2);
+  if (locLines.length === 1) {
+    ctx.fillText(locLines[0], midX + 68, cardY + cardH / 2 + 6);
+  } else {
+    ctx.font = "600 15px Inter";
+    ctx.fillText(locLines[0], midX + 68, cardY + cardH / 2 - 4);
+    ctx.fillText(locLines[1], midX + 68, cardY + cardH / 2 + 16);
+  }
+
+  y = cardY + cardH + 38;
+
+  // ---- Undangan Untuk Umum ----
+  ctx.textAlign = "center";
+  ctx.font = "700 15px Inter";
+  const inviteText = "UNDANGAN UNTUK UMUM";
+  const inviteW = ctx.measureText(inviteText).width;
+  roundedRectPath(ctx, centerX - inviteW / 2 - 22, y - 24, inviteW + 44, 34, 17);
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(inviteText, centerX, y);
+
+  // ---- Bar bawah: Live + Rekening Infaq ----
+  const barY = HEIGHT - 50;
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(60, barY - 26);
+  ctx.lineTo(WIDTH - 60, barY - 26);
+  ctx.stroke();
+
+  ctx.font = "700 15px Inter";
+  ctx.fillStyle = "#ffffff";
+  if (data.livePlatforms.length) {
+    ctx.textAlign = "left";
+    ctx.fillText(truncate(ctx, `● LIVE ${data.livePlatforms.join(" & ").toUpperCase()}`, 520), 60, barY);
+  }
+  const rek = data.rekening[0];
+  if (rek) {
+    ctx.textAlign = "right";
+    ctx.fillText(truncate(ctx, `INFAQ  ${rek.bank_name}: ${rek.account_number}`, 520), WIDTH - 60, barY);
+  }
 }

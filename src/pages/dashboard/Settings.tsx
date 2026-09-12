@@ -3,7 +3,14 @@ import { supabase } from "../../lib/supabaseClient";
 import { fetchHijriDate, fetchHijriDateID, fetchHijriMap, fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
 import { isYoutubeLiveConfigured } from "../../lib/youtube";
 import { isPamfletUploadConfigured, uploadPamfletToDrive } from "../../lib/pamfletUpload";
-import { generatePamfletImage, PAMFLET_PALETTES, PamfletData } from "../../lib/pamfletGenerator";
+import {
+  generatePamfletImage,
+  paletteCount,
+  paletteName,
+  PamfletData,
+  PamfletTemplate,
+  PAMFLET_TEMPLATE_LABELS,
+} from "../../lib/pamfletGenerator";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
 import UploadPamfletButton from "../../components/UploadPamfletButton";
@@ -133,7 +140,13 @@ function KajianSettings() {
   const [rekeningList, setRekeningList] = useState<InfaqRekening[]>([]);
   const [socialList, setSocialList] = useState<SocialLink[]>([]);
   const [aboutAddress, setAboutAddress] = useState<string | null>(null);
-  const [pamfletPreview, setPamfletPreview] = useState<{ url: string; blob: Blob; paletteIndex: number } | null>(null);
+  const [pamfletTemplate, setPamfletTemplate] = useState<PamfletTemplate>("kajian-rutin");
+  const [pamfletPreview, setPamfletPreview] = useState<{
+    url: string;
+    blob: Blob;
+    template: PamfletTemplate;
+    paletteIndex: number;
+  } | null>(null);
   const [pamfletGenerating, setPamfletGenerating] = useState(false);
   const [pamfletApplying, setPamfletApplying] = useState(false);
   const [pamfletError, setPamfletError] = useState<string | null>(null);
@@ -176,7 +189,7 @@ function KajianSettings() {
   // canvas (generatePamfletImage), tampilkan pratinjau dulu sebelum
   // diunggah ke Drive -- supaya admin bisa "Buat Ulang" (ganti tema warna)
   // kalau hasilnya kurang pas, tanpa langsung ke-upload. ----
-  const buildPamfletBlob = async (paletteIndex: number) => {
+  const buildPamfletBlob = async (template: PamfletTemplate, paletteIndex: number) => {
     if (!form.title.trim() || !form.tanggal || !form.time_text.trim()) {
       throw new Error("Isi dulu Judul Kajian, Tanggal, dan Jam sebelum membuat pamflet otomatis.");
     }
@@ -215,17 +228,17 @@ function KajianSettings() {
       livePlatforms,
       orgName: "Al Amanah GKN I Denpasar",
     };
-    return generatePamfletImage(data, paletteIndex);
+    return generatePamfletImage(data, template, paletteIndex);
   };
 
-  const generatePamflet = async (paletteIndex: number) => {
+  const generatePamflet = async (template: PamfletTemplate, paletteIndex: number) => {
     setPamfletError(null);
     setPamfletGenerating(true);
     try {
-      const blob = await buildPamfletBlob(paletteIndex);
+      const blob = await buildPamfletBlob(template, paletteIndex);
       setPamfletPreview((prev) => {
         if (prev) URL.revokeObjectURL(prev.url);
-        return { url: URL.createObjectURL(blob), blob, paletteIndex };
+        return { url: URL.createObjectURL(blob), blob, template, paletteIndex };
       });
     } catch (err) {
       setPamfletError(err instanceof Error ? err.message : "Gagal membuat pamflet otomatis.");
@@ -235,8 +248,9 @@ function KajianSettings() {
   };
 
   const regeneratePamflet = () => {
-    const next = ((pamfletPreview?.paletteIndex ?? -1) + 1) % PAMFLET_PALETTES.length;
-    generatePamflet(next);
+    const template = pamfletPreview?.template ?? pamfletTemplate;
+    const next = ((pamfletPreview?.paletteIndex ?? -1) + 1) % paletteCount(template);
+    generatePamflet(template, next);
   };
 
   const closePamfletPreview = () => {
@@ -463,11 +477,24 @@ function KajianSettings() {
           <div className="flex flex-wrap items-center gap-2">
             <UploadPamfletButton onUploaded={(link) => setForm((f) => ({ ...f, foto_url: link }))} />
             {isPamfletUploadConfigured() && (
+              <select
+                className="input !w-auto text-xs !py-1.5"
+                value={pamfletTemplate}
+                onChange={(e) => setPamfletTemplate(e.target.value as PamfletTemplate)}
+              >
+                {Object.entries(PAMFLET_TEMPLATE_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {isPamfletUploadConfigured() && (
               <button
                 type="button"
                 className="btn-secondary text-xs !py-1.5"
                 disabled={pamfletGenerating}
-                onClick={() => generatePamflet(Math.floor(Math.random() * PAMFLET_PALETTES.length))}
+                onClick={() => generatePamflet(pamfletTemplate, Math.floor(Math.random() * paletteCount(pamfletTemplate)))}
               >
                 {pamfletGenerating ? "Membuat..." : "🎨 Buat Otomatis"}
               </button>
@@ -664,7 +691,7 @@ function KajianSettings() {
           <div className="card max-w-lg w-full">
             <h3 className="font-semibold text-gray-800 mb-1">Pratinjau Pamflet Otomatis</h3>
             <p className="text-xs text-gray-500 mb-3">
-              Tema warna: {PAMFLET_PALETTES[pamfletPreview.paletteIndex].name}. Kalau kurang pas, klik "Buat Ulang" untuk
+              Tema warna: {paletteName(pamfletPreview.template, pamfletPreview.paletteIndex)}. Kalau kurang pas, klik "Buat Ulang" untuk
               coba tema warna lain -- belum ke-upload ke Drive sebelum kamu klik "Pakai Pamflet Ini".
             </p>
             <img src={pamfletPreview.url} alt="Pratinjau pamflet" className="w-full rounded-lg border border-gray-100 mb-3" />
