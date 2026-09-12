@@ -4,10 +4,10 @@ import { useAuth } from "../../context/AuthContext";
 
 const links = [
   { to: "/", label: "Beranda" },
-  { to: "/tentang", label: "Tentang" },
+  { to: "/bacaan", label: "Bacaan" },
   { to: "/kalender", label: "Kalender" },
   { to: "/keuangan", label: "Laporan Keuangan" },
-  { to: "/bacaan", label: "Bacaan" },
+  { to: "/tentang", label: "Tentang" },
 ];
 
 export default function Navbar() {
@@ -24,8 +24,8 @@ export default function Navbar() {
 
   return (
     <header className="bg-white text-gray-700 sticky top-0 z-40 border-b border-gray-100 shadow-sm pt-[max(20px,env(safe-area-inset-top))]">
-      <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center gap-2 font-serif font-bold text-lg">
+      <div className="max-w-6xl mx-auto px-4 flex items-center h-16 gap-8">
+        <Link to="/" className="flex items-center gap-2 font-serif font-bold text-lg shrink-0">
           <img
             src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
             className="h-11 w-auto"
@@ -50,7 +50,7 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3 ml-auto">
           {user ? (
             <>
               {canSeeDashboard && (
@@ -77,7 +77,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <button className="md:hidden text-gray-600" onClick={() => setOpen((o) => !o)} aria-label="Menu">
+        <button className="md:hidden text-gray-600 ml-auto" onClick={() => setOpen((o) => !o)} aria-label="Menu">
           <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
           </svg>

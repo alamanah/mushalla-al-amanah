@@ -67,7 +67,7 @@ export default function LaporanKeuanganTab({ items, bukaPuasaItems, showControls
       {laporan && (
         <div className="print-area card !p-0 overflow-hidden border border-primary-100 shadow-sm">
           {/* Kop laporan -- logo di kiri (ikut tercetak di PDF karena ada di dalam .print-area) */}
-          <div className="bg-primary-900 text-white py-5 px-4 flex items-center gap-4">
+          <div className="bg-primary-900 text-white py-5 px-6 flex items-center gap-4">
             <img
               src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
               className="h-14 w-auto shrink-0"

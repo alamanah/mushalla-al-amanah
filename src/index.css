@@ -30,9 +30,13 @@ body {
 }
 /* Versi "transparan" dari .card -- dipakai khusus di section beranda publik
    supaya menyatu/blend dengan latar halaman, tanpa kotak putih/border/bayangan.
-   .card biasa tetap dipakai di dashboard & form supaya tetap jelas batasnya. */
+   .card biasa tetap dipakai di dashboard & form supaya tetap jelas batasnya.
+   Sengaja TANPA padding kiri/kanan (beda dari .card) -- karena tidak ada
+   lagi kotak/border yang membutuhkan "napas" ekstra, kiri-kanannya cukup
+   ikut padding container halaman saja supaya lurus dengan logo di navbar
+   dan footer. Padding atas-bawah tetap ada untuk jarak antar section. */
 .panel {
-  @apply p-5;
+  @apply py-5;
 }
 .input {
   @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
