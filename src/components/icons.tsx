@@ -112,22 +112,22 @@ export function IconClock(props: IconProps) {
   );
 }
 
-// ---- Ikon media sosial (glyph putih polos, dipasang di atas badge bulat
-// berwarna brand masing-masing platform -- lihat SocialLinks.tsx) ----
+// ---- Ikon media sosial (flat, monokrom -- warnanya ikut currentColor
+// supaya gampang dipakai hitam/abu-abu polos, lihat socialPlatforms.tsx) ----
 
 export function IconInstagramGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
       <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
       <circle cx="12" cy="12" r="4.2" />
-      <circle cx="17" cy="7" r="1.1" fill="white" stroke="none" />
+      <circle cx="17" cy="7" r="1.1" fill="currentColor" stroke="none" />
     </svg>
   );
 }
 
 export function IconFacebookGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="white" stroke="none" {...props}>
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" {...props}>
       <path d="M14.5 8.5h2V5.7c-.35-.05-1.55-.15-2.96-.15-2.93 0-4.94 1.79-4.94 5.07v2.63H6v3.2h3.6V21h3.3v-4.55h3.17l.5-3.2h-3.67v-2.3c0-.93.26-1.45 1.6-1.45Z" />
     </svg>
   );
@@ -135,15 +135,16 @@ export function IconFacebookGlyph(props: IconProps) {
 
 export function IconYoutubeGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="white" stroke="none" {...props}>
-      <path d="M9.5 8.2v7.6l6.5-3.8-6.5-3.8Z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+      <path d="M10.3 9.4v5.2l4.8-2.6-4.8-2.6Z" fill="currentColor" stroke="none" />
     </svg>
   );
 }
 
 export function IconTiktokGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="white" stroke="none" {...props}>
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" {...props}>
       <path d="M14 4v9.5a3.5 3.5 0 1 1-3.2-3.48V8.9A5.6 5.6 0 1 0 16 14.4V9.8a6.6 6.6 0 0 0 3.6 1.07V8.8A4.6 4.6 0 0 1 15.9 4H14Z" />
     </svg>
   );
@@ -151,11 +152,11 @@ export function IconTiktokGlyph(props: IconProps) {
 
 export function IconWhatsappGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M6.5 17.5 5 20l2.6-1.4A7.5 7.5 0 1 0 6.5 17.5Z" />
       <path
         d="M9.5 9.8c.2-.6.5-.6.8-.6h.5c.2 0 .4 0 .6.4.2.4.6 1.4.7 1.5.1.1.1.3 0 .5-.1.2-.2.3-.4.5-.2.2-.4.4-.2.7.2.4 1 1.5 2.1 2 .3.2.5.1.7-.1.2-.2.4-.5.6-.7.2-.2.3-.2.6-.1.2.1 1.5.7 1.8.8.3.1.4.2.5.3.1.2.1.9-.2 1.3-.3.5-1.3 1-1.9 1-.6 0-1.5-.1-3.2-1.3-2-1.4-3.3-3.4-3.4-3.6-.1-.2-.9-1.3-.9-2.4 0-1.1.6-1.7.8-1.9Z"
-        fill="white"
+        fill="currentColor"
         stroke="none"
       />
     </svg>
@@ -164,7 +165,7 @@ export function IconWhatsappGlyph(props: IconProps) {
 
 export function IconGlobeGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M3.5 12h17M12 3.5c2.2 2.3 3.4 5.2 3.4 8.5s-1.2 6.2-3.4 8.5c-2.2-2.3-3.4-5.2-3.4-8.5S9.8 5.8 12 3.5Z" />
     </svg>
@@ -198,7 +199,7 @@ export function IconMapPin(props: IconProps) {
 
 export function IconLinkGlyph(props: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M9.5 14.5 14.5 9.5" />
       <path d="M11 7.5l1.4-1.4a3.5 3.5 0 0 1 5 5L16 12.5" />
       <path d="M13 16.5l-1.4 1.4a3.5 3.5 0 1 1-5-5L8 11.5" />

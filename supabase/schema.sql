@@ -113,6 +113,7 @@ create table if not exists public.social_links (
   id uuid primary key default gen_random_uuid(),
   platform text not null,
   url text not null,
+  display_name text, -- nama tampilan custom, mis. "@al_amanah_dps" (opsional)
   is_active boolean not null default true,
   sort_order int not null default 0
 );

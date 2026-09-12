@@ -87,6 +87,9 @@ export interface SocialLink {
   id: string;
   platform: string;
   url: string;
+  /** Nama tampilan custom, mis. "@al_amanah_dps" -- kalau kosong, tampilkan
+   * nama platform-nya saja (lihat Footer.tsx). */
+  display_name: string | null;
   is_active: boolean;
   sort_order: number;
 }

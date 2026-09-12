@@ -55,18 +55,21 @@ export default function Footer() {
               <ul className="space-y-2.5 text-sm">
                 {links.map((l) => {
                   const style = platformStyle(l.platform);
+                  const label = l.display_name?.trim() || l.platform;
                   return (
                     <li key={l.id}>
                       <a
                         href={l.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 text-gray-600 hover:text-primary-700 transition-colors capitalize"
+                        className="group flex items-center gap-2 text-gray-600 hover:text-primary-700 transition-colors"
                       >
-                        <span className={`flex items-center justify-center h-6 w-6 rounded-full shrink-0 ${style.bg}`}>
+                        <span
+                          className={`flex items-center justify-center h-6 w-6 rounded-full shrink-0 transition-colors group-hover:bg-primary-50 group-hover:text-primary-700 ${style.bg}`}
+                        >
                           {style.icon}
                         </span>
-                        {l.platform}
+                        <span className={l.display_name?.trim() ? "" : "capitalize"}>{label}</span>
                       </a>
                     </li>
                   );

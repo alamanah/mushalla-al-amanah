@@ -1052,14 +1052,22 @@ function InfaqRekeningManager() {
 
 function SocialSettings() {
   const [items, setItems] = useState<SocialLink[]>([]);
-  const [form, setForm] = useState({ platform: "", url: "" });
+  const [form, setForm] = useState({ platform: "", url: "", display_name: "" });
+  // Draft nama tampilan per baris (id -> teks yang lagi diketik), supaya
+  // entri yang sudah ada (mis. Instagram/Facebook/Youtube lama) juga bisa
+  // diisi/diubah nama tampilannya tanpa harus hapus-tambah ulang.
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
 
   const load = () =>
     supabase
       .from("social_links")
       .select("*")
       .order("sort_order", { ascending: true })
-      .then(({ data }) => setItems((data as SocialLink[]) ?? []));
+      .then(({ data }) => {
+        const rows = (data as SocialLink[]) ?? [];
+        setItems(rows);
+        setNameDrafts(Object.fromEntries(rows.map((r) => [r.id, r.display_name ?? ""])));
+      });
 
   useEffect(() => {
     load();
@@ -1068,8 +1076,14 @@ function SocialSettings() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    await supabase.from("social_links").insert({ platform: form.platform, url: form.url, is_active: true, sort_order: items.length });
-    setForm({ platform: "", url: "" });
+    await supabase.from("social_links").insert({
+      platform: form.platform,
+      url: form.url,
+      display_name: form.display_name.trim() || null,
+      is_active: true,
+      sort_order: items.length,
+    });
+    setForm({ platform: "", url: "", display_name: "" });
     load();
   };
 
@@ -1079,6 +1093,10 @@ function SocialSettings() {
   };
   const remove = async (id: string) => {
     await supabase.from("social_links").delete().eq("id", id);
+    load();
+  };
+  const saveName = async (id: string) => {
+    await supabase.from("social_links").update({ display_name: (nameDrafts[id] ?? "").trim() || null }).eq("id", id);
     load();
   };
 
@@ -1095,6 +1113,15 @@ function SocialSettings() {
             onChange={(e) => setForm({ ...form, platform: e.target.value })}
           />
         </div>
+        <div className="flex-1 min-w-[160px]">
+          <label className="label">Nama Tampilan (opsional)</label>
+          <input
+            placeholder="@al_amanah_dps"
+            className="input"
+            value={form.display_name}
+            onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+          />
+        </div>
         <div className="flex-1 min-w-[200px]">
           <label className="label">URL</label>
           <input
@@ -1109,12 +1136,21 @@ function SocialSettings() {
       </form>
       <div className="space-y-2">
         {items.map((l) => (
-          <div key={l.id} className="card flex items-center justify-between">
+          <div key={l.id} className="card flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-medium capitalize">{l.platform}</p>
               <p className="text-xs text-gray-500">{l.url}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                placeholder="Nama tampilan, mis. @al_amanah_dps"
+                className="input !w-auto text-sm"
+                value={nameDrafts[l.id] ?? ""}
+                onChange={(e) => setNameDrafts({ ...nameDrafts, [l.id]: e.target.value })}
+              />
+              <button className="btn-secondary text-xs !px-2.5 !py-1.5" onClick={() => saveName(l.id)}>
+                Simpan
+              </button>
               <button
                 className={`badge ${l.is_active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-500"}`}
                 onClick={() => toggleActive(l.id, l.is_active)}
