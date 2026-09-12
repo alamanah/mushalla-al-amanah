@@ -24,7 +24,6 @@ export default function KhatibJumatList() {
   const [loading, setLoading] = useState(true);
   const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
   const [bulan, setBulan] = useState(bulanKeySekarang());
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     supabase
@@ -42,41 +41,25 @@ export default function KhatibJumatList() {
 
   const bulanOptions = useMemo(() => bulanOptionsDari(items.map((k) => k.tanggal)), [items]);
   const itemsBulanIni = useMemo(() => items.filter((k) => bulanKeyDari(k.tanggal) === bulan), [items, bulan]);
-  // Disaring lagi berdasarkan nama ustadz yang diketik di kotak pencarian.
-  const itemsTampil = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return itemsBulanIni;
-    return itemsBulanIni.filter((k) => k.nama_ustadz.toLowerCase().includes(q));
-  }, [itemsBulanIni, search]);
 
   return (
     <div className="panel flex flex-col md:h-[460px]">
-      <div className="mb-4 flex flex-col gap-2 shrink-0">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Khatib Jumat</h3>
-          <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>
-            {bulanOptions.map((b) => (
-              <option key={b} value={b}>
-                {labelBulan(b)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <input
-          className="input !py-1.5 !text-xs"
-          placeholder="Cari nama ustadz..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap shrink-0">
+        <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Khatib Jumat</h3>
+        <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>
+          {bulanOptions.map((b) => (
+            <option key={b} value={b}>
+              {labelBulan(b)}
+            </option>
+          ))}
+        </select>
       </div>
       {loading && <p className="text-sm text-gray-400">Memuat jadwal khatib...</p>}
-      {!loading && itemsTampil.length === 0 && (
-        <p className="text-sm text-gray-400">
-          {search.trim() ? "Tidak ditemukan khatib dengan nama tersebut." : "Belum ada jadwal khatib Jumat pada bulan ini."}
-        </p>
+      {!loading && itemsBulanIni.length === 0 && (
+        <p className="text-sm text-gray-400">Belum ada jadwal khatib Jumat pada bulan ini.</p>
       )}
       <ul className="flex-1 min-h-0 overflow-y-auto space-y-1.5">
-        {itemsTampil.map((k) => (
+        {itemsBulanIni.map((k) => (
           <li key={k.id}>
             <div
               className="flex items-center gap-3 rounded-xl p-2.5 cursor-pointer border border-transparent hover:border-gray-100 hover:bg-gray-50 transition-colors"

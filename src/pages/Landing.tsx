@@ -2,7 +2,6 @@ import PrayerTimesCard from "../components/PrayerTimesCard";
 import KajianList from "../components/KajianList";
 import KhatibJumatList from "../components/KhatibJumatList";
 import InfaqCard from "../components/InfaqCard";
-import SocialLinks from "../components/SocialLinks";
 
 // Header besar (logo + nama mushalla) sengaja dihilangkan -- sudah ada di
 // Navbar, jadi tidak perlu diulang di sini. Section-section beranda dibuat
@@ -24,10 +23,6 @@ export default function Landing() {
 
       <div className="border-t border-gray-100 mt-8 pt-8">
         <InfaqCard />
-      </div>
-
-      <div className="border-t border-gray-100 mt-8 pt-8">
-        <SocialLinks />
       </div>
     </div>
   );

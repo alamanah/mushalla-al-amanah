@@ -112,6 +112,7 @@ const emptyKajianForm = {
 function KajianSettings() {
   const [items, setItems] = useState<KajianSchedule[]>([]);
   const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyKajianForm);
   const [prayerForTanggal, setPrayerForTanggal] = useState<PrayerTimesResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -249,6 +250,8 @@ function KajianSettings() {
     return new Date(t).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   };
 
+  const itemsTampil = items.filter((k) => (k.ustadz ?? "").toLowerCase().includes(search.trim().toLowerCase()));
+
   return (
     <div>
       <form onSubmit={submit} className="card grid sm:grid-cols-3 gap-3 mb-6">
@@ -378,8 +381,18 @@ function KajianSettings() {
         </p>
       )}
 
+      <input
+        className="input max-w-xs mb-3"
+        placeholder="Cari nama ustadz..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
       <div className="space-y-2">
-        {items.map((k) => {
+        {search.trim() && itemsTampil.length === 0 && (
+          <p className="text-sm text-gray-400">Tidak ditemukan kajian dengan nama ustadz tersebut.</p>
+        )}
+        {itemsTampil.map((k) => {
           const isToday = k.specific_date === todayStr();
           const isPolling = pollingIds.has(k.id);
           return (
@@ -529,6 +542,7 @@ const emptyKhatibForm = {
 function KhatibJumatSettings() {
   const [items, setItems] = useState<KhatibJumatSchedule[]>([]);
   const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyKhatibForm);
   const [saving, setSaving] = useState(false);
   const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
@@ -644,6 +658,8 @@ function KhatibJumatSettings() {
     return new Date(t).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   };
 
+  const itemsTampil = items.filter((k) => k.nama_ustadz.toLowerCase().includes(search.trim().toLowerCase()));
+
   return (
     <div>
       <form onSubmit={submit} className="card grid sm:grid-cols-3 gap-3 mb-6">
@@ -708,8 +724,18 @@ function KhatibJumatSettings() {
         </p>
       )}
 
+      <input
+        className="input max-w-xs mb-3"
+        placeholder="Cari nama ustadz..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
       <div className="space-y-2">
-        {items.map((k) => {
+        {search.trim() && itemsTampil.length === 0 && (
+          <p className="text-sm text-gray-400">Tidak ditemukan khatib dengan nama tersebut.</p>
+        )}
+        {itemsTampil.map((k) => {
           const isToday = k.tanggal === todayStr();
           const isPolling = pollingIds.has(k.id);
           return (
@@ -967,13 +993,30 @@ function InfaqRekeningManager() {
           />
         </div>
         <div className="sm:col-span-3">
-          <label className="label">URL Gambar QRIS Rekening Ini (opsional)</label>
+          <label className="label">Gambar QRIS Rekening Ini (opsional)</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <UploadPamfletButton onUploaded={(link) => setForm((f) => ({ ...f, qris_url: link }))} />
+            {isPamfletUploadConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
+          </div>
           <input
-            className="input"
-            placeholder="https://..."
+            className="input mt-2"
+            placeholder="https://drive.google.com/file/d/..."
             value={form.qris_url}
             onChange={(e) => setForm({ ...form, qris_url: e.target.value })}
           />
+          {driveImageUrl(form.qris_url) && (
+            <img
+              src={driveImageUrl(form.qris_url)!}
+              alt=""
+              className="mt-2 w-24 h-24 object-contain rounded-lg border border-gray-100"
+            />
+          )}
+          {!isPamfletUploadConfigured() && (
+            <p className="text-[11px] text-gray-400 mt-1">
+              Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di
+              sini.
+            </p>
+          )}
         </div>
         <button className="btn-primary sm:col-span-3" disabled={saving}>
           {saving ? "Menyimpan..." : "Tambah Rekening"}
@@ -985,7 +1028,11 @@ function InfaqRekeningManager() {
           <div key={r.id} className="card flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               {r.qris_url && (
-                <img src={r.qris_url} alt="" className="w-10 h-10 object-contain rounded border border-gray-100 shrink-0" />
+                <img
+                  src={driveImageUrl(r.qris_url) ?? undefined}
+                  alt=""
+                  className="w-10 h-10 object-contain rounded border border-gray-100 shrink-0"
+                />
               )}
               <div className="min-w-0">
                 <p className="font-medium text-gray-800">{r.bank_name}</p>

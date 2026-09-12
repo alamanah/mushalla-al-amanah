@@ -12,6 +12,7 @@ function TabUser() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, AppRole[]>>({});
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -44,6 +45,11 @@ function TabUser() {
     load();
   };
 
+  const q = search.trim().toLowerCase();
+  const usersTampil = q
+    ? users.filter((u) => (u.full_name ?? "").toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q))
+    : users;
+
   return (
     <div>
       <p className="text-sm text-gray-500 mb-4">
@@ -51,10 +57,19 @@ function TabUser() {
         tersebut. Untuk memberi akses admin atau approve/tolak/hapus user, gunakan menu
         <span className="font-medium"> Verifikasi User</span>.
       </p>
+      <input
+        className="input max-w-xs mb-4"
+        placeholder="Cari nama atau email..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
       {loading && <p className="text-sm text-gray-400">Memuat...</p>}
       {!loading && users.length === 0 && <p className="text-sm text-gray-400">Belum ada user terverifikasi.</p>}
+      {!loading && users.length > 0 && usersTampil.length === 0 && (
+        <p className="text-sm text-gray-400">Tidak ditemukan user dengan nama/email tersebut.</p>
+      )}
       <div className="space-y-3">
-        {users.map((u) => {
+        {usersTampil.map((u) => {
           const roles = rolesByUser[u.id] ?? [];
           return (
             <div key={u.id} className="card">
@@ -100,6 +115,7 @@ function TabUstadz() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyUstadzForm);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -162,6 +178,8 @@ function TabUstadz() {
     load();
   };
 
+  const itemsTampil = items.filter((u) => u.nama.toLowerCase().includes(search.trim().toLowerCase()));
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -222,11 +240,21 @@ function TabUstadz() {
         </form>
       )}
 
+      <input
+        className="input max-w-xs mb-4"
+        placeholder="Cari nama ustadz..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
       {loading && <p className="text-sm text-gray-400">Memuat...</p>}
       {!loading && items.length === 0 && <p className="text-sm text-gray-400">Belum ada data ustadz.</p>}
+      {!loading && items.length > 0 && itemsTampil.length === 0 && (
+        <p className="text-sm text-gray-400">Tidak ditemukan ustadz dengan nama tersebut.</p>
+      )}
 
       <div className="space-y-3">
-        {items.map((u) => (
+        {itemsTampil.map((u) => (
           <div key={u.id} className="card flex items-start justify-between gap-3">
             <div>
               <p className="font-medium text-gray-800">{u.nama}</p>
