@@ -119,6 +119,8 @@ create table if not exists public.social_links (
 create table if not exists public.about_content (
   id uuid primary key default gen_random_uuid(),
   content text not null default '',
+  address text, -- alamat mushalla, ditampilkan di halaman Tentang & footer
+  maps_url text, -- link Google Maps (opsional) untuk tombol "Buka di Google Maps"
   updated_at timestamptz not null default now()
 );
 

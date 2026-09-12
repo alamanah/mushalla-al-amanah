@@ -1072,6 +1072,8 @@ function SocialSettings() {
 
 function AboutSettings() {
   const [content, setContent] = useState("");
+  const [address, setAddress] = useState("");
+  const [mapsUrl, setMapsUrl] = useState("");
   const [id, setId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -1083,8 +1085,11 @@ function AboutSettings() {
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
-          setContent((data as AboutContent).content);
-          setId((data as AboutContent).id);
+          const row = data as AboutContent;
+          setContent(row.content);
+          setAddress(row.address ?? "");
+          setMapsUrl(row.maps_url ?? "");
+          setId(row.id);
         }
       });
   }, []);
@@ -1092,10 +1097,11 @@ function AboutSettings() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setSaved(false);
+    const payload = { content, address: address.trim() || null, maps_url: mapsUrl.trim() || null };
     if (id) {
-      await supabase.from("about_content").update({ content }).eq("id", id);
+      await supabase.from("about_content").update(payload).eq("id", id);
     } else {
-      const { data } = await supabase.from("about_content").insert({ content }).select().maybeSingle();
+      const { data } = await supabase.from("about_content").insert(payload).select().maybeSingle();
       if (data) setId((data as AboutContent).id);
     }
     setSaved(true);
@@ -1105,6 +1111,31 @@ function AboutSettings() {
     <form onSubmit={submit} className="card max-w-2xl space-y-3">
       <label className="label">Konten "Tentang Mushalla"</label>
       <textarea rows={12} className="input" value={content} onChange={(e) => setContent(e.target.value)} />
+
+      <label className="label">Alamat Mushalla (opsional)</label>
+      <input
+        className="input"
+        placeholder="Jl. Contoh No. 1, Denpasar, Bali"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
+      <p className="text-[11px] text-gray-400 -mt-2">
+        Diisi otomatis jadi peta di halaman Tentang &amp; footer -- tidak perlu setup apa pun.
+      </p>
+
+      <label className="label">Link Google Maps (opsional)</label>
+      <input
+        className="input"
+        placeholder="https://maps.app.goo.gl/..."
+        value={mapsUrl}
+        onChange={(e) => setMapsUrl(e.target.value)}
+      />
+      <p className="text-[11px] text-gray-400 -mt-2">
+        Dipakai untuk tombol "Buka di Google Maps" -- buka Google Maps, cari lokasi mushalla, klik{" "}
+        <strong>Bagikan</strong>, salin link-nya, tempel di sini. Kalau dikosongkan, tombolnya tetap muncul dan
+        mencari otomatis berdasarkan Alamat di atas.
+      </p>
+
       <button className="btn-primary">Simpan</button>
       {saved && <p className="text-sm text-primary-700">Tersimpan.</p>}
     </form>

@@ -93,6 +93,8 @@ export interface SocialLink {
 export interface AboutContent {
   id: string;
   content: string;
+  address: string | null;
+  maps_url: string | null;
   updated_at: string;
 }
 
