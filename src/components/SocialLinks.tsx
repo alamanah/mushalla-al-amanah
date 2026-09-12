@@ -1,31 +1,7 @@
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { SocialLink } from "../types";
-import {
-  IconFacebookGlyph,
-  IconGlobeGlyph,
-  IconInstagramGlyph,
-  IconLinkGlyph,
-  IconTiktokGlyph,
-  IconWhatsappGlyph,
-  IconYoutubeGlyph,
-} from "./icons";
-
-// Badge bulat berwarna khas tiap platform + ikon glyph putih di atasnya --
-// ganti dari emoji (📷/📘/▶️/...) yang tampilannya beda-beda & kurang rapi
-// antar perangkat, ke ikon buatan sendiri yang konsisten.
-const PLATFORM_STYLE: Record<string, { bg: string; icon: ReactNode }> = {
-  instagram: {
-    bg: "bg-gradient-to-tr from-[#FEE411] via-[#FD1D1D] to-[#833AB4]",
-    icon: <IconInstagramGlyph className="h-[18px] w-[18px]" />,
-  },
-  facebook: { bg: "bg-[#1877F2]", icon: <IconFacebookGlyph className="h-[18px] w-[18px]" /> },
-  youtube: { bg: "bg-[#FF0000]", icon: <IconYoutubeGlyph className="h-[18px] w-[18px]" /> },
-  tiktok: { bg: "bg-black", icon: <IconTiktokGlyph className="h-[18px] w-[18px]" /> },
-  whatsapp: { bg: "bg-[#25D366]", icon: <IconWhatsappGlyph className="h-[18px] w-[18px]" /> },
-  website: { bg: "bg-primary-700", icon: <IconGlobeGlyph className="h-[18px] w-[18px]" /> },
-};
-const FALLBACK_STYLE = { bg: "bg-gray-400", icon: <IconLinkGlyph className="h-[18px] w-[18px]" /> };
+import { platformStyle } from "../lib/socialPlatforms";
 
 export default function SocialLinks() {
   const [links, setLinks] = useState<SocialLink[]>([]);
@@ -46,7 +22,7 @@ export default function SocialLinks() {
       <h3 className="font-serif font-bold text-lg text-primary-900 mb-3">Ikuti Media Sosial Kami</h3>
       <div className="flex flex-wrap gap-3">
         {links.map((l) => {
-          const style = PLATFORM_STYLE[l.platform.toLowerCase()] ?? FALLBACK_STYLE;
+          const style = platformStyle(l.platform);
           return (
             <a
               key={l.id}

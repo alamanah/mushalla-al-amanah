@@ -171,6 +171,22 @@ export function IconGlobeGlyph(props: IconProps) {
   );
 }
 
+export function IconChevronLeft(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 export function IconMapPin(props: IconProps) {
   return (
     <svg {...base} {...props}>

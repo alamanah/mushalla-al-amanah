@@ -11,22 +11,22 @@ export default function Landing() {
 
   return (
     <div>
-      <section className="bg-gradient-to-b from-primary-900 to-primary-700 text-white">
+      <section className="bg-gradient-to-b from-primary-50 to-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 py-16 text-center">
           <img
             src={`${import.meta.env.BASE_URL}logo-al-amanah.png`}
             className="h-24 w-auto mx-auto mb-4"
             alt="Logo Mushalla Al Amanah"
           />
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold mb-3">Mushalla Al Amanah</h1>
-          <p className="text-white/80">GKN I Denpasar</p>
-          <p className="max-w-xl mx-auto mt-4 text-white/80 text-sm sm:text-base">Bersama Menuju Allah</p>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold mb-3 text-primary-900">Mushalla Al Amanah</h1>
+          <p className="text-gray-500">GKN I Denpasar</p>
+          <p className="max-w-xl mx-auto mt-4 text-gray-500 text-sm sm:text-base">Bersama Menuju Allah</p>
           {!user && (
             <div className="mt-6 flex justify-center gap-3">
-              <Link to="/register" className="btn-gold">
+              <Link to="/register" className="btn-primary">
                 Daftar Jamaah
               </Link>
-              <Link to="/tentang" className="btn-secondary !bg-white/10 !text-white !border-white/30 hover:!bg-white/20">
+              <Link to="/tentang" className="btn-secondary">
                 Tentang Mushalla
               </Link>
             </div>
