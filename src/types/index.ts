@@ -64,13 +64,22 @@ export interface PrayerOverride {
 
 export interface InfaqInfo {
   id: string;
-  bank_name: string | null;
-  account_number: string | null;
-  account_holder: string | null;
   ewallet_name: string | null;
   ewallet_number: string | null;
   qr_image_url: string | null;
   description: string | null;
+}
+
+/** Satu rekening bank Infaq & Shadaqah -- bisa lebih dari satu baris
+ * (dikelola di Dashboard > Pengaturan Konten > Info Infaq), beda dari
+ * InfaqInfo yang cuma menyimpan info umum & e-wallet (1 baris). */
+export interface InfaqRekening {
+  id: string;
+  bank_name: string;
+  account_number: string;
+  account_holder: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface SocialLink {

@@ -22,6 +22,7 @@ import {
 import {
   AboutContent,
   InfaqInfo,
+  InfaqRekening,
   KajianSchedule,
   KhatibJumatSchedule,
   PrayerOverride,
@@ -812,6 +813,15 @@ function KhatibJumatSettings() {
 }
 
 function InfaqSettings() {
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <InfaqUmumForm />
+      <InfaqRekeningManager />
+    </div>
+  );
+}
+
+function InfaqUmumForm() {
   const [form, setForm] = useState<Partial<InfaqInfo>>({});
   const [id, setId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -843,33 +853,14 @@ function InfaqSettings() {
   };
 
   return (
-    <form onSubmit={submit} className="card grid sm:grid-cols-2 gap-3 max-w-2xl">
+    <form onSubmit={submit} className="card grid sm:grid-cols-2 gap-3">
+      <h2 className="sm:col-span-2 font-semibold text-gray-800">Info Umum &amp; E-Wallet</h2>
       <div className="sm:col-span-2">
         <label className="label">Deskripsi</label>
         <input
           className="input"
           value={form.description ?? ""}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-      </div>
-      <div>
-        <label className="label">Nama Bank</label>
-        <input className="input" value={form.bank_name ?? ""} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} />
-      </div>
-      <div>
-        <label className="label">Nomor Rekening</label>
-        <input
-          className="input"
-          value={form.account_number ?? ""}
-          onChange={(e) => setForm({ ...form, account_number: e.target.value })}
-        />
-      </div>
-      <div>
-        <label className="label">Atas Nama</label>
-        <input
-          className="input"
-          value={form.account_holder ?? ""}
-          onChange={(e) => setForm({ ...form, account_holder: e.target.value })}
         />
       </div>
       <div>
@@ -888,7 +879,7 @@ function InfaqSettings() {
           onChange={(e) => setForm({ ...form, ewallet_number: e.target.value })}
         />
       </div>
-      <div>
+      <div className="sm:col-span-2">
         <label className="label">URL Gambar QRIS</label>
         <input
           className="input"
@@ -899,6 +890,101 @@ function InfaqSettings() {
       <button className="btn-primary sm:col-span-2">Simpan</button>
       {saved && <p className="text-sm text-primary-700 sm:col-span-2">Tersimpan.</p>}
     </form>
+  );
+}
+
+const emptyRekeningForm = { bank_name: "", account_number: "", account_holder: "" };
+
+/** Rekening bank Infaq & Shadaqah -- bisa lebih dari satu, beda dari
+ * InfaqUmumForm (info umum & e-wallet cuma 1 baris) di atas. */
+function InfaqRekeningManager() {
+  const [items, setItems] = useState<InfaqRekening[]>([]);
+  const [form, setForm] = useState(emptyRekeningForm);
+  const [saving, setSaving] = useState(false);
+
+  const load = () =>
+    supabase
+      .from("infaq_rekening")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => setItems((data as InfaqRekening[]) ?? []));
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!form.bank_name.trim() || !form.account_number.trim()) return;
+    setSaving(true);
+    await supabase.from("infaq_rekening").insert({
+      bank_name: form.bank_name.trim(),
+      account_number: form.account_number.trim(),
+      account_holder: form.account_holder.trim() || null,
+      sort_order: items.length,
+    });
+    setSaving(false);
+    setForm(emptyRekeningForm);
+    load();
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from("infaq_rekening").delete().eq("id", id);
+    load();
+  };
+
+  return (
+    <div>
+      <h2 className="font-semibold text-gray-800 mb-3">Rekening Bank (Transfer)</h2>
+      <form onSubmit={submit} className="card grid sm:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label className="label">Nama Bank</label>
+          <input
+            required
+            placeholder="BRI"
+            className="input"
+            value={form.bank_name}
+            onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="label">Nomor Rekening</label>
+          <input
+            required
+            className="input"
+            value={form.account_number}
+            onChange={(e) => setForm({ ...form, account_number: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="label">Atas Nama</label>
+          <input
+            className="input"
+            value={form.account_holder}
+            onChange={(e) => setForm({ ...form, account_holder: e.target.value })}
+          />
+        </div>
+        <button className="btn-primary sm:col-span-3" disabled={saving}>
+          {saving ? "Menyimpan..." : "Tambah Rekening"}
+        </button>
+      </form>
+      <div className="space-y-2">
+        {items.length === 0 && <p className="text-sm text-gray-400">Belum ada rekening bank ditambahkan.</p>}
+        {items.map((r) => (
+          <div key={r.id} className="card flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-800">{r.bank_name}</p>
+              <p className="text-sm text-gray-600 tracking-wide">{r.account_number}</p>
+              {r.account_holder && <p className="text-xs text-gray-400">a.n. {r.account_holder}</p>}
+            </div>
+            <IconButton label="Hapus Rekening" variant="danger" onClick={() => remove(r.id)}>
+              <IconTrash className="h-4 w-4" />
+            </IconButton>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
