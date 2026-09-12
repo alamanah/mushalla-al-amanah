@@ -60,7 +60,7 @@ export default function DashboardLayout() {
         </nav>
       </aside>
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="shrink-0 bg-white border-b border-gray-100 flex items-center justify-end gap-3 px-6 min-h-16 pt-[max(20px,env(safe-area-inset-top))]">
+        <header className="shrink-0 bg-white border-b border-gray-100 flex items-center justify-end gap-3 px-6 min-h-16 pt-[env(safe-area-inset-top)]">
           <Link
             to="/profil"
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-primary-700 min-w-0"

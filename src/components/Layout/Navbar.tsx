@@ -23,7 +23,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="bg-white text-gray-700 sticky top-0 z-40 border-b border-gray-100 shadow-sm pt-[max(20px,env(safe-area-inset-top))]">
+    <header className="bg-white text-gray-700 sticky top-0 z-40 border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)]">
       <div className="max-w-6xl mx-auto px-4 flex items-center h-16 gap-8">
         <Link to="/" className="flex items-center gap-2 font-serif font-bold text-lg shrink-0">
           <img
