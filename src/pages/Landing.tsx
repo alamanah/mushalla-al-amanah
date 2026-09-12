@@ -1,4 +1,5 @@
 import PrayerTimesCard from "../components/PrayerTimesCard";
+import BacaanList from "../components/BacaanList";
 import KajianList from "../components/KajianList";
 import KhatibJumatList from "../components/KhatibJumatList";
 import InfaqCard from "../components/InfaqCard";
@@ -10,6 +11,7 @@ import InfaqCard from "../components/InfaqCard";
 export default function Landing() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      <BacaanList />
       <PrayerTimesCard />
 
       <div className="grid md:grid-cols-2 md:divide-x md:divide-gray-200 border-t border-gray-100 mt-8 pt-8">

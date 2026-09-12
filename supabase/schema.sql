@@ -483,10 +483,16 @@ create policy "articles_insert_own_approved_user" on public.articles for insert
     and exists (select 1 from public.profiles p where p.id = auth.uid() and p.status = 'approved')
   );
 
+-- Penulis boleh mengubah artikelnya kapan pun (termasuk yang sudah
+-- terbit), tapi tidak boleh membuat hasil update-nya langsung berstatus
+-- "published" sendiri -- aplikasi yang mengatur (lihat ArticleEditor.tsx)
+-- otomatis mengembalikan status ke "pending" saat penulis non-admin
+-- mengubah artikel yang sudah terbit, supaya tetap dicek ulang admin.
 drop policy if exists "articles_update_own_unpublished" on public.articles;
-create policy "articles_update_own_unpublished" on public.articles for update
-  using (auth.uid() = author_id and status in ('draft', 'pending', 'rejected'))
-  with check (auth.uid() = author_id);
+drop policy if exists "articles_update_own" on public.articles;
+create policy "articles_update_own" on public.articles for update
+  using (auth.uid() = author_id)
+  with check (auth.uid() = author_id and status <> 'published');
 
 drop policy if exists "articles_admin_all" on public.articles;
 create policy "articles_admin_all" on public.articles for all

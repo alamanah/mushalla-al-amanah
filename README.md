@@ -95,15 +95,20 @@ ke tempat yang benar.
 
 ## 4. Struktur Fitur
 
-- **Landing page** (`/`): jadwal shalat otomatis (API, lokasi Denpasar), jadwal kajian,
-  info infaq, link sosmed, tombol daftar/masuk.
+- **Landing page** (`/`): widget "Bahan Bacaan" (5 artikel terbaru, auto-scroll) di
+  paling atas, jadwal shalat otomatis (API, lokasi Denpasar), jadwal kajian, info
+  infaq, link sosmed, tombol daftar/masuk.
 - **Tentang** (`/tentang`): profil mushalla (dikelola admin).
 - **Laporan Keuangan** (`/keuangan`): transparan untuk publik, dikelola oleh bendahara.
-- **Bacaan** (`/bacaan`): artikel dari jamaah, tayang setelah disetujui admin. Menulis
-  artikel (`/bacaan/tulis`) memerlukan akun yang sudah **diverifikasi** admin.
+- **Bacaan** (`/bacaan`): artikel dari jamaah, tayang setelah disetujui admin, dengan
+  paginasi (10 artikel/halaman). Menulis artikel (`/bacaan/tulis`) memerlukan akun
+  yang sudah **diverifikasi** admin -- isinya bisa diformat (bold/italic/underline)
+  lewat editor bawaan. Penulis (atau admin) bisa mengubah artikelnya lagi kapan pun
+  lewat tombol "Ubah" (`/bacaan/edit/:id`) -- kalau yang mengubah bukan admin dan
+  artikelnya sudah terbit, statusnya otomatis balik ke "Menunggu Review".
 - **Dashboard** (`/dashboard`, perlu login + role):
   - **Verifikasi User** (admin): approve/reject jamaah baru, atur role.
-  - **Moderasi Artikel** (admin): setujui/tolak artikel.
+  - **Moderasi Artikel** (admin): setujui/tolak/ubah artikel.
   - **Keuangan** (admin/bendahara): catat pemasukan & pengeluaran.
   - **Inventaris** (admin/inventaris): catat aset mushalla.
   - **Pengaturan Konten** (admin): jadwal kajian, info infaq, sosmed, tentang mushalla,

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { stripHtml } from "../../lib/sanitizeHtml";
 import { Article } from "../../types";
 
 export default function ArticleModeration() {
@@ -60,34 +62,39 @@ export default function ArticleModeration() {
               <div className="min-w-0">
                 <p className="font-medium text-gray-800">{a.title}</p>
                 <p className="text-xs text-gray-400 mb-2">Oleh {a.author_name || "-"}</p>
-                <p className="text-sm text-gray-600 line-clamp-3 whitespace-pre-wrap">{a.content}</p>
+                <p className="text-sm text-gray-600 line-clamp-3">{stripHtml(a.content)}</p>
               </div>
               <span className="badge bg-gray-100 text-gray-600 shrink-0 capitalize">{a.status}</span>
             </div>
-            {a.status === "pending" && (
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                <button className="btn-primary !py-1 !px-3 text-xs" onClick={() => approve(a.id)}>
-                  Setujui &amp; Terbitkan
-                </button>
-                {noteFor === a.id ? (
-                  <>
-                    <input
-                      className="input !py-1 text-xs max-w-xs"
-                      placeholder="Alasan penolakan (opsional)"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                    />
-                    <button className="btn-danger !py-1 !px-3 text-xs" onClick={() => reject(a.id)}>
-                      Kirim Penolakan
-                    </button>
-                  </>
-                ) : (
-                  <button className="btn-danger !py-1 !px-3 text-xs" onClick={() => setNoteFor(a.id)}>
-                    Tolak
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+              <Link to={`/bacaan/edit/${a.id}`} className="btn-secondary !py-1 !px-3 text-xs">
+                Ubah
+              </Link>
+              {a.status === "pending" && (
+                <>
+                  <button className="btn-primary !py-1 !px-3 text-xs" onClick={() => approve(a.id)}>
+                    Setujui &amp; Terbitkan
                   </button>
-                )}
-              </div>
-            )}
+                  {noteFor === a.id ? (
+                    <>
+                      <input
+                        className="input !py-1 text-xs max-w-xs"
+                        placeholder="Alasan penolakan (opsional)"
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                      />
+                      <button className="btn-danger !py-1 !px-3 text-xs" onClick={() => reject(a.id)}>
+                        Kirim Penolakan
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn-danger !py-1 !px-3 text-xs" onClick={() => setNoteFor(a.id)}>
+                      Tolak
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>

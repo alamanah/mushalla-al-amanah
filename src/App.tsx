@@ -41,6 +41,7 @@ export default function App() {
             <Route path="/keuangan" element={<FinancialReport />} />
             <Route path="/bacaan" element={<Articles />} />
             <Route path="/bacaan/tulis" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
+            <Route path="/bacaan/edit/:id" element={<ProtectedRoute><ArticleEditor /></ProtectedRoute>} />
             <Route path="/bacaan/:slug" element={<ArticleDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

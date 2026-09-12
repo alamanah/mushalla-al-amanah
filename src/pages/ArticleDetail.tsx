@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../context/AuthContext";
+import { sanitizeArticleHtml } from "../lib/sanitizeHtml";
 import { Article } from "../types";
 
 export default function ArticleDetail() {
   const { slug } = useParams();
+  const { user, isAdmin } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -39,11 +42,20 @@ export default function ArticleDetail() {
     );
   }
 
+  const canEdit = isAdmin || (!!user && user.id === article.author_id);
+
   return (
     <article className="max-w-2xl mx-auto px-4 py-12">
-      <Link to="/bacaan" className="text-sm text-primary-700 mb-4 inline-block">
-        &larr; Kembali ke Bacaan
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/bacaan" className="text-sm text-primary-700 inline-block">
+          &larr; Kembali ke Bacaan
+        </Link>
+        {canEdit && (
+          <Link to={`/bacaan/edit/${article.id}`} className="btn-secondary !py-1 !px-3 text-xs">
+            Ubah Artikel
+          </Link>
+        )}
+      </div>
       {article.cover_image_url && (
         <img src={article.cover_image_url} alt="" className="w-full h-56 object-cover rounded-xl mb-6" />
       )}
@@ -52,9 +64,10 @@ export default function ArticleDetail() {
         {article.author_name ? `Oleh ${article.author_name}` : ""}
         {article.published_at ? ` · ${new Date(article.published_at).toLocaleDateString("id-ID")}` : ""}
       </p>
-      <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-700 leading-relaxed">
-        {article.content}
-      </div>
+      <div
+        className="prose prose-sm max-w-none text-gray-700 leading-relaxed [&_p]:mb-3"
+        dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(article.content) }}
+      />
     </article>
   );
 }
