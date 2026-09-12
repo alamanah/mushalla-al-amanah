@@ -367,6 +367,17 @@ function drawImageCover(
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
+/** Ubah warna hex ("#rrggbb") jadi string rgba() dengan alpha custom --
+ * dipakai untuk gradasi lembut (transparan di satu ujung) yang warnanya
+ * ikut tema palet, bukan warna tetap. */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 /** Ikon YouTube sederhana (sama dengan IconYoutubeGlyph di components/icons.tsx)
  * -- kotak bulat + segitiga play, dipakai di baris "LIVE" pamflet. */
 function drawYoutubeIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
@@ -697,9 +708,17 @@ async function drawKajianRutinTemplate(
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+  // ---- Ornamen gradasi lembut di pojok kiri atas -- aksen dekoratif
+  // mengikuti warna tema, bukan gambar tempelan. ----
+  const cornerGlow = ctx.createRadialGradient(-30, -30, 0, -30, -30, 360);
+  cornerGlow.addColorStop(0, hexToRgba(palette.accent, 0.38));
+  cornerGlow.addColorStop(1, hexToRgba(palette.accent, 0));
+  ctx.fillStyle = cornerGlow;
+  ctx.fillRect(0, 0, 430, 430);
+
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  let y = 68;
+  let y = 46;
 
   // ---- Logo putih di tengah atas (diperbesar + digambar halus supaya
   // detail tulisan kecil di dalam logo tetap kebaca jelas). ----
@@ -713,14 +732,14 @@ async function drawKajianRutinTemplate(
   } catch {
     // Diam-diam lewati logo kalau gagal dimuat.
   }
-  y += 40;
+  y += 62;
 
   // ---- Kaligrafi Bismillah -- putih polos, tanpa bingkai lingkaran/oval. ----
   ctx.font = `700 34px ${arabicFont}`;
   const bismillahText = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(bismillahText, centerX, y + 16);
-  y += 84;
+  y += 104;
 
   // ---- Judul ----
   ctx.font = "700 42px Inter";
@@ -731,14 +750,15 @@ async function drawKajianRutinTemplate(
     ctx.font = `700 ${fitted.size}px Inter`;
     ctx.fillText(line, centerX, y + i * titleLineHeight);
   });
-  y += (fitted.lines.length - 1) * titleLineHeight + 34;
+  y += (fitted.lines.length - 1) * titleLineHeight + 50;
 
-  // ---- "bersama: nama ustadz" + Hafidzahullahu ----
+  // ---- "bersama: nama ustadz" + Hafidzahullahu -- jarak label->pill dan
+  // pill->Hafidzahullahu dibuat serupa supaya terasa merata. ----
   if (data.ustadz) {
     ctx.font = "400 15px Inter";
     ctx.fillStyle = palette.accent;
     ctx.fillText("bersama:", centerX, y);
-    y += 32;
+    y += 36;
 
     ctx.font = "700 22px Inter";
     const nameText = truncate(ctx, data.ustadz, 640);
@@ -751,21 +771,37 @@ async function drawKajianRutinTemplate(
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
     ctx.fillText(nameText, centerX, y);
-    y += 38;
+    y += 50;
 
     ctx.font = "italic 400 16px Inter";
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.fillText("Hafidzahullahu", centerX, y);
-    y += 40;
+    y += 36;
   } else {
-    y += 16;
+    y += 20;
   }
 
-  // ---- Kartu jadwal (kalender) + lokasi (map) ----
+  // ---- Bar bawah (dihitung dulu geometrinya sebelum kartu jadwal, supaya
+  // kartu jadwal bisa "didorong" turun mendekati footer kalau kontennya
+  // pendek -- biar tidak ada jarak kosong yang kebesaran). ----
+  const hasYoutubeLive = data.livePlatforms.some((p) => p.toLowerCase() === "youtube");
+  const rekList = data.rekening.slice(0, 2);
+  const bankLines = rekList.length ? rekList.map((r) => `${r.bank_name}: ${r.account_number}`) : ["Belum ada rekening aktif."];
+  const rightStack: { text: string; font: string; h: number; color: string }[] = [
+    { text: "Rekening Infaq:", font: "700 13px Inter", h: 19, color: "rgba(255,255,255,0.8)" },
+    ...bankLines.map((l) => ({ text: l, font: "700 15px Inter", h: 21, color: "#ffffff" })),
+  ];
+  const rightStackHeight = rightStack.reduce((s, l) => s + l.h, 0);
+  const barH = Math.max(54, rightStackHeight + 26);
+  const barTop = HEIGHT - 30 - barH;
+  const barCenterY = barTop + barH / 2;
+
+  // ---- Kartu jadwal (kalender) + lokasi (map) -- didorong turun mendekati
+  // bar bawah kalau ada ruang kosong, tapi tidak sampai mepet/tumpang tindih. ----
   const cardW = 800;
   const cardX = centerX - cardW / 2;
-  const cardY = y;
   const cardH = 92;
+  const cardY = Math.min(Math.max(y + 36, barTop - 58 - cardH), barTop - cardH - 16);
   ctx.fillStyle = palette.card;
   roundedRectPath(ctx, cardX, cardY, cardW, cardH, 16);
   ctx.fill();
@@ -802,15 +838,7 @@ async function drawKajianRutinTemplate(
     ctx.fillText(locLines[1], midX + 68, cardY + cardH / 2 + 16);
   }
 
-  // ---- Bar bawah: Live (+ ikon YouTube) & sampai 2 Rekening Infaq ----
-  const rekList = data.rekening.slice(0, 2);
-  const rightLines = rekList.length
-    ? rekList.map((r) => `${r.bank_name}: ${r.account_number}`)
-    : ["Belum ada rekening aktif."];
-  const barLineCount = Math.max(1, rightLines.length);
-  const barH = 26 + barLineCount * 20;
-  const barTop = HEIGHT - 28 - barH;
-
+  // ---- Bar bawah: garis pemisah ----
   ctx.strokeStyle = "rgba(255,255,255,0.25)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -818,26 +846,39 @@ async function drawKajianRutinTemplate(
   ctx.lineTo(WIDTH - 60, barTop);
   ctx.stroke();
 
-  const barCenterY = barTop + 14 + (barH - 14) / 2;
-
-  if (data.livePlatforms.length) {
-    const liveText = `LIVE ${data.livePlatforms.join(" & ").toUpperCase()}`;
-    ctx.font = "700 15px Inter";
-    const hasYoutube = data.livePlatforms.some((p) => p.toLowerCase() === "youtube");
-    const iconGap = hasYoutube ? 26 : 0;
+  // ---- Kiri: "Live" + ikon YouTube + nama mushola -- hanya tampil kalau
+  // YouTube memang salah satu platform live yang aktif. ----
+  if (hasYoutubeLive) {
     ctx.textAlign = "left";
     ctx.fillStyle = "#ffffff";
-    if (hasYoutube) drawYoutubeIcon(ctx, 60, barCenterY - 11, 22, "#ffffff");
-    ctx.fillText(truncate(ctx, `● ${liveText}`, 480 - iconGap), 60 + iconGap, barCenterY + 5);
+    ctx.font = "700 16px Inter";
+    ctx.fillText("Live", 60, barCenterY + 6);
+    const liveW = ctx.measureText("Live").width;
+    const iconX = 60 + liveW + 10;
+    drawYoutubeIcon(ctx, iconX, barCenterY - 11, 22, "#ffffff");
+    ctx.font = "600 14px Inter";
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillText(truncate(ctx, data.orgName, 300), iconX + 22 + 10, barCenterY + 5);
   }
 
+  // ---- Kanan: "Rekening Infaq:" + nomor bertumpuk atas-bawah, dengan
+  // "a.n. <nama mushola>" di sebelah kanannya. ----
+  ctx.font = "400 13px Inter";
+  const anText = truncate(ctx, `a.n. ${data.orgName}`, 260);
+  const anW = ctx.measureText(anText).width;
+  const stackRightX = WIDTH - 60 - anW - 22;
+
   ctx.textAlign = "right";
-  ctx.fillStyle = "#ffffff";
-  const rightLineHeight = 20;
-  const rightBlockTop = barCenterY + 5 - ((rightLines.length - 1) * rightLineHeight) / 2 - (rightLines.length > 1 ? 4 : 0);
-  rightLines.forEach((line, i) => {
-    ctx.font = i === 0 && rightLines.length > 1 ? "700 14px Inter" : "700 15px Inter";
-    const prefix = rightLines.length > 1 ? "" : "INFAQ  ";
-    ctx.fillText(truncate(ctx, `${prefix}${line}`, 480), WIDTH - 60, rightBlockTop + i * rightLineHeight);
+  let ly = barTop + (barH - rightStackHeight) / 2 + rightStack[0].h * 0.78;
+  rightStack.forEach((line) => {
+    ctx.font = line.font;
+    ctx.fillStyle = line.color;
+    ctx.fillText(truncate(ctx, line.text, 260), stackRightX, ly);
+    ly += line.h;
   });
+
+  ctx.textAlign = "left";
+  ctx.font = "400 13px Inter";
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillText(anText, stackRightX + 22, barCenterY + 5);
 }

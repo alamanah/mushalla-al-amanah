@@ -231,7 +231,7 @@ function KajianSettings() {
       })),
       whatsapp,
       livePlatforms,
-      orgName: "Al Amanah GKN I Denpasar",
+      orgName: "Mushalla Al Amanah GKN I Denpasar",
     };
 
     // Latar kustom (kalau diunggah admin sendiri) -- dimuat sebagai gambar
