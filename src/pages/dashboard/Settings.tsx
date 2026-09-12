@@ -252,7 +252,7 @@ function KajianSettings() {
     setPamfletApplying(true);
     setPamfletError(null);
     try {
-      const file = new File([pamfletPreview.blob], `pamflet-otomatis-${Date.now()}.png`, { type: "image/png" });
+      const file = new File([pamfletPreview.blob], "pamflet-otomatis.jpg", { type: "image/jpeg" });
       const link = await uploadPamfletToDrive(file);
       setForm((f) => ({ ...f, foto_url: link }));
       closePamfletPreview();

@@ -23,6 +23,18 @@ function doPost(e) {
       return jsonResponse({ error: "Token tidak valid." });
     }
     var folder = getOrCreateFolder(FOLDER_NAME);
+
+    // Kalau file dengan nama yang sama sudah ada di folder ini, jangan
+    // upload dobel -- langsung balikin link file yang sudah ada. Ini
+    // membuat percobaan ulang otomatis dari sisi aplikasi (kalau responsnya
+    // sempat gagal diterima browser padahal upload sebelumnya sudah
+    // berhasil) aman dilakukan tanpa membuat file dobel di Drive.
+    var existing = folder.getFilesByName(body.filename);
+    if (existing.hasNext()) {
+      var existingFile = existing.next();
+      return jsonResponse({ url: "https://drive.google.com/file/d/" + existingFile.getId() + "/view" });
+    }
+
     var bytes = Utilities.base64Decode(body.data);
     var blob = Utilities.newBlob(bytes, body.mimeType, body.filename);
     var file = folder.createFile(blob);

@@ -27,6 +27,52 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// Apps Script Web App merespons lewat redirect ke domain lain
+// (script.googleusercontent.com) buat mengirim isi responsnya -- di sisi
+// Google, doPost() SUDAH selesai dijalankan (file SUDAH masuk Drive) sebelum
+// redirect itu terjadi, tapi kadang browser gagal membaca hasil redirect-nya
+// (jaringan lambat/putus sesaat, dll), jadi fetch() melempar error padahal
+// upload sebenarnya berhasil. Makanya di sini dicoba sekali lagi otomatis
+// sebelum benar-benar menyerah -- aman diulang karena Code.gs mengecek dulu
+// apakah file dengan nama yang sama sudah ada sebelum membuat yang baru,
+// jadi tidak akan menghasilkan file dobel di Drive.
+async function postToGas(url: string, body: string): Promise<Response> {
+  const attempt = () =>
+    fetch(url, {
+      method: "POST",
+      // Sengaja text/plain (bukan application/json) supaya browser tidak
+      // mengirim preflight OPTIONS -- Google Apps Script Web App tidak
+      // menanganinya, jadi upload akan gagal kalau preflight ikut terkirim.
+      // Apps Script tetap mem-parse isinya sebagai JSON di sisi server.
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body,
+    });
+  try {
+    return await attempt();
+  } catch (firstErr) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      return await attempt();
+    } catch {
+      throw firstErr;
+    }
+  }
+}
+
+/** Tambah akhiran acak+waktu ke nama file supaya nyaris pasti unik --
+ * penting karena Code.gs (sisi Google) memakai NAMA FILE untuk mendeteksi
+ * upload yang sudah pernah berhasil (lihat komentar di postToGas). Kalau
+ * nama file dipakai apa adanya (mis. dua orang sama-sama upload
+ * "IMG_1234.jpg"), foto yang beda bisa salah dianggap "sudah pernah
+ * diupload" dan malah balik link foto orang lain. */
+function uniqueFilename(originalName: string): string {
+  const dot = originalName.lastIndexOf(".");
+  const base = dot > 0 ? originalName.slice(0, dot) : originalName;
+  const ext = dot > 0 ? originalName.slice(dot) : "";
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${base}-${stamp}${ext}`;
+}
+
 /** Upload satu file gambar pamflet lewat Google Apps Script Web App --
  * balikin link Drive-nya (siap dipakai langsung, kompatibel dengan
  * driveImageUrl() di src/lib/driveLink.ts). */
@@ -34,18 +80,11 @@ export async function uploadPamfletToDrive(file: File): Promise<string> {
   const url = import.meta.env.VITE_GAS_UPLOAD_URL as string;
   const token = (import.meta.env.VITE_GAS_UPLOAD_TOKEN as string | undefined) || "";
   const data = await fileToBase64(file);
+  const filename = uniqueFilename(file.name);
 
   let res: Response;
   try {
-    res = await fetch(url, {
-      method: "POST",
-      // Sengaja text/plain (bukan application/json) supaya browser tidak
-      // mengirim preflight OPTIONS -- Google Apps Script Web App tidak
-      // menanganinya, jadi upload akan gagal kalau preflight ikut terkirim.
-      // Apps Script tetap mem-parse isinya sebagai JSON di sisi server.
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ token, filename: file.name, mimeType: file.type, data }),
-    });
+    res = await postToGas(url, JSON.stringify({ token, filename, mimeType: file.type, data }));
   } catch {
     throw new Error("Tidak bisa menghubungi Google Apps Script. Periksa koneksi internet dan URL yang dikonfigurasi.");
   }

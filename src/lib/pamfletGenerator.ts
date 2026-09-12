@@ -397,11 +397,16 @@ export async function generatePamfletImage(data: PamfletData, paletteIndex = 0):
   ctx.font = "400 13px Inter";
   ctx.fillText(truncate(ctx, data.orgName, colW - 20), col3X, footerY + 82);
 
+  // JPEG (bukan PNG) sengaja dipilih di sini -- ukuran filenya jauh lebih
+  // kecil untuk gambar sekompleks ini (latar gradasi+tekstur), jadi upload
+  // ke Drive lebih cepat & lebih jarang gagal di koneksi lambat. Kualitas
+  // visualnya tidak kelihatan bedanya karena tidak ada bagian yang perlu
+  // transparan.
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new Error("Gagal membuat gambar pamflet."));
-    }, "image/png");
+    }, "image/jpeg", 0.92);
   });
 }
 
