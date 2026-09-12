@@ -1,5 +1,5 @@
 import { ChangeEvent, useRef, useState } from "react";
-import { isGoogleDriveConfigured, uploadPamfletToDrive } from "../lib/googleDrive";
+import { isPamfletUploadConfigured, uploadPamfletToDrive } from "../lib/pamfletUpload";
 
 interface Props {
   /** Dipanggil dengan link Google Drive hasil upload setelah berhasil. */
@@ -9,18 +9,19 @@ interface Props {
 
 /**
  * Tombol "Upload ke Google Drive": pilih gambar dari perangkat, otomatis
- * diunggah ke folder "Pamflet" di Google Drive akun yang login (dibuat
- * otomatis kalau belum ada), dibagikan "siapa saja yang punya link", lalu
- * link-nya dikirim ke `onUploaded`. Nonaktif diam-diam (tidak dirender)
- * kalau VITE_GOOGLE_CLIENT_ID belum dikonfigurasi -- lihat
- * supabase/SETUP.md bagian "Upload Pamflet otomatis ke Google Drive".
+ * diunggah lewat Google Apps Script ke folder "Pamflet" di Google Drive akun
+ * yang men-deploy script-nya (dibuat otomatis kalau belum ada), dibagikan
+ * "siapa saja yang punya link", lalu link-nya dikirim ke `onUploaded`.
+ * Nonaktif diam-diam (tidak dirender) kalau VITE_GAS_UPLOAD_URL belum
+ * dikonfigurasi -- lihat supabase/SETUP.md bagian "Upload Pamflet otomatis
+ * ke Google Drive".
  */
 export default function UploadPamfletButton({ onUploaded, className }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isGoogleDriveConfigured()) return null;
+  if (!isPamfletUploadConfigured()) return null;
 
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

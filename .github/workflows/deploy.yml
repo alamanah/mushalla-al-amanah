@@ -38,7 +38,8 @@ jobs:
           VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
           VITE_YOUTUBE_CHANNEL_ID: ${{ secrets.VITE_YOUTUBE_CHANNEL_ID }}
           # Opsional -- untuk tombol "Upload ke Google Drive" di Pamflet Jadwal Kajian (lihat supabase/SETUP.md).
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GAS_UPLOAD_URL: ${{ secrets.VITE_GAS_UPLOAD_URL }}
+          VITE_GAS_UPLOAD_TOKEN: ${{ secrets.VITE_GAS_UPLOAD_TOKEN }}
           # Base path otomatis diisi nama repo, misal: /mushalla-al-amanah/
           BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build

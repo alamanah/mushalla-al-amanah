@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchHijriDate, fetchHijriMap, fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
 import { isYoutubeLiveConfigured } from "../../lib/youtube";
-import { isGoogleDriveConfigured } from "../../lib/googleDrive";
+import { isPamfletUploadConfigured } from "../../lib/pamfletUpload";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
 import UploadPamfletButton from "../../components/UploadPamfletButton";
@@ -302,7 +302,7 @@ function KajianSettings() {
           <label className="label">Pamflet (opsional)</label>
           <div className="flex flex-wrap items-center gap-2">
             <UploadPamfletButton onUploaded={(link) => setForm((f) => ({ ...f, foto_url: link }))} />
-            {isGoogleDriveConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
+            {isPamfletUploadConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
           </div>
           <input
             className="input mt-2"
@@ -310,7 +310,7 @@ function KajianSettings() {
             value={form.foto_url}
             onChange={(e) => setForm({ ...form, foto_url: e.target.value })}
           />
-          {!isGoogleDriveConfigured() && (
+          {!isPamfletUploadConfigured() && (
             <p className="text-[11px] text-gray-400 mt-1">
               Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di
               sini.
@@ -413,14 +413,14 @@ function KajianSettings() {
             {driveImageUrl(photoLinkInput) && (
               <img src={driveImageUrl(photoLinkInput)!} alt="" className="w-full rounded-lg mb-3 border border-gray-100" />
             )}
-            {isGoogleDriveConfigured() && <p className="text-[11px] text-gray-400 mb-1">atau tempel link manual:</p>}
+            {isPamfletUploadConfigured() && <p className="text-[11px] text-gray-400 mb-1">atau tempel link manual:</p>}
             <input
               className="input"
               placeholder="https://drive.google.com/file/d/..."
               value={photoLinkInput}
               onChange={(e) => setPhotoLinkInput(e.target.value)}
             />
-            {!isGoogleDriveConfigured() && (
+            {!isPamfletUploadConfigured() && (
               <p className="text-[11px] text-gray-400 mt-1">
                 Unggah gambar ke Google Drive, atur akses "Siapa saja yang memiliki link", lalu tempel link-nya di sini.
               </p>

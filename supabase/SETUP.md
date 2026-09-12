@@ -230,37 +230,48 @@ dibagikan "siapa saja yang punya link", dan link-nya otomatis tersimpan -- tidak
 lagi buka Google Drive manual lalu tempel link. Ini opsional -- kalau langkah ini
 dilewati, form Pamflet tetap bisa dipakai dengan cara tempel link manual seperti biasa.
 
-Bisa pakai project Google Cloud yang sama dengan langkah nomor 5 (Live YouTube) di atas,
-atau buat project baru:
+Caranya lewat **Google Apps Script (GAS)** -- jauh lebih sederhana daripada bikin OAuth
+di Google Cloud Console: tidak perlu OAuth consent screen, tidak perlu daftar Test user,
+dan siapa pun yang pakai tombol upload ini **tidak perlu login Google sendiri** --
+upload berjalan otomatis di sisi Google memakai akun pengurus yang men-deploy script-nya.
 
-1. Buka https://console.cloud.google.com/ → pilih/buat project (nama bebas).
-2. Menu **APIs & Services → Library**, cari **"Google Drive API"**, klik **Enable**.
-3. Menu **APIs & Services → OAuth consent screen**:
-   - **User Type**: pilih **External**, klik **Create**.
-   - Isi **App name** (mis. "Website Al Amanah"), **User support email**, dan **Developer
-     contact email** (email kamu sendiri) → **Save and Continue**.
-   - Di halaman **Scopes**, klik **Add or Remove Scopes**, cari/tempel
-     `https://www.googleapis.com/auth/drive.file` → centang → **Update** → **Save and Continue**.
-   - Di halaman **Test users**, klik **Add Users** → masukkan alamat Gmail akun pengurus
-     (humas/admin) yang akan dipakai untuk upload pamflet → **Save and Continue**.
-   - Biarkan status app **"Testing"** (tidak perlu di-publish/verifikasi Google) -- cukup
-     untuk beberapa akun pengurus yang sudah ditambahkan sebagai Test user di atas.
-4. Menu **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
-   - **Application type**: **Web application**.
-   - Di **Authorized JavaScript origins**, klik **Add URI** → tambahkan alamat website kamu,
-     contoh: `https://<username-github>.github.io` (tanpa `/` atau path di belakangnya).
-   - Klik **Create**. Salin **Client ID** yang muncul (bukan Client secret, tidak dipakai) --
-     ini nilai **`VITE_GOOGLE_CLIENT_ID`**.
-5. Tambahkan nilai ini sebagai **GitHub Actions secret** (Settings → Secrets and variables →
-   Actions → New repository secret), sama seperti secret lainnya:
-   - `VITE_GOOGLE_CLIENT_ID`
-6. Push ulang (atau re-run GitHub Actions workflow-nya) supaya nilai baru ini ikut ter-build.
+1. Login ke Gmail akun pengurus yang Drive-nya akan dipakai untuk menyimpan pamflet
+   (boleh `alamanahgknidenpasar@gmail.com` atau akun pengurus lain), lalu buka
+   https://script.google.com/ → **New project**.
+2. Hapus semua kode contoh di editor, lalu salin-tempel seluruh isi file
+   `google-apps-script/Code.gs` (ada di dalam paket/folder proyek ini) ke sana.
+3. Di baris paling atas kode itu, ganti nilai `TOKEN`:
+   ```
+   var TOKEN = "GANTI_DENGAN_TOKEN_RAHASIA_KAMU";
+   ```
+   Ganti `GANTI_DENGAN_TOKEN_RAHASIA_KAMU` dengan teks rahasia bebas (kombinasi huruf/angka
+   acak, mis. `alamanah-2026-x7kq`) -- ini semacam kata sandi supaya alamat upload-nya
+   tidak bisa dipakai sembarang orang lain. Simpan project (ikon disket / Ctrl+S), beri
+   nama bebas (mis. "Upload Pamflet Al Amanah").
+4. Klik **Deploy → New deployment**. Klik ikon gerigi di sebelah "Select type" → pilih
+   **Web app**. Isi:
+   - **Execute as**: **Me** (akun kamu yang sedang login).
+   - **Who has access**: **Anyone**.
+   Klik **Deploy**. Kalau muncul jendela izin ("Authorize access"), pilih akun Google
+   kamu → klik **Advanced/Lanjutan** → **Go to (nama project) (unsafe)** → **Allow/Izinkan**
+   (wajar muncul peringatan ini karena scriptnya baru kamu buat sendiri, belum diverifikasi
+   Google -- aman karena kamu yang menulis kodenya sendiri).
+5. Setelah deploy selesai, salin **Web app URL** yang muncul (diakhiri `/exec`) -- ini
+   nilai **`VITE_GAS_UPLOAD_URL`**. Nilai **`VITE_GAS_UPLOAD_TOKEN`** adalah token rahasia
+   yang kamu isi di langkah 3 tadi (harus sama persis).
+6. Tambahkan kedua nilai ini sebagai **GitHub Actions secrets** (Settings → Secrets and
+   variables → Actions → New repository secret), sama seperti secret lainnya:
+   - `VITE_GAS_UPLOAD_URL`
+   - `VITE_GAS_UPLOAD_TOKEN`
+7. Push ulang (atau re-run GitHub Actions workflow-nya) supaya nilai baru ini ikut ter-build.
 
-Cara pakai: klik **"Upload ke Google Drive"**, pilih gambar pamflet, lalu pertama kali
-akan muncul jendela login/izin Google -- pilih akun Gmail yang sudah ditambahkan sebagai
-**Test user** di langkah 3, lalu izinkan. File otomatis masuk folder "Pamflet" di Drive
-akun tersebut, dan pamflet langsung tampil di beranda. Login ini diminta ulang lagi
-setiap kurang lebih 1 jam tidak dipakai (wajar, bukan error).
+Cara pakai: klik **"Upload ke Google Drive"**, pilih gambar pamflet -- tanpa perlu login
+Google apa pun, file langsung terunggah ke folder "Pamflet" di Drive akun yang men-deploy
+script tadi, dan pamfletnya langsung tampil di beranda.
+
+Kalau nanti perlu mengubah kode Apps Script-nya lagi, buka kembali project di
+https://script.google.com/, edit kodenya, lalu **Deploy → Manage deployments → ikon pensil
+→ Version: New version → Deploy** (URL Web app-nya tetap sama, tidak perlu ganti secret).
 
 ---
 
