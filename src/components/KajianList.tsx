@@ -24,8 +24,8 @@ export default function KajianList() {
       .from("kajian_schedule")
       .select("*")
       .eq("is_active", true)
-      .order("specific_date", { ascending: true, nullsFirst: false })
-      .order("day_of_week", { ascending: true, nullsFirst: false })
+      .order("specific_date", { ascending: false, nullsFirst: false })
+      .order("day_of_week", { ascending: false, nullsFirst: false })
       .then(({ data }) => {
         setItems((data as KajianSchedule[]) ?? []);
         setLoading(false);

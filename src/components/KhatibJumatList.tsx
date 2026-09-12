@@ -30,7 +30,7 @@ export default function KhatibJumatList() {
       .from("khatib_jumat_schedule")
       .select("*")
       .eq("is_active", true)
-      .order("tanggal", { ascending: true })
+      .order("tanggal", { ascending: false })
       .then(({ data }) => {
         const rows = (data as KhatibJumatSchedule[]) ?? [];
         setItems(rows);
