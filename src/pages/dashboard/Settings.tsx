@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { fetchHijriDate, fetchHijriMap, fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
+import { fetchHijriDate, fetchHijriDateID, fetchHijriMap, fetchPrayerTimes, PrayerTimesResult } from "../../lib/prayerTimes";
 import { isYoutubeLiveConfigured } from "../../lib/youtube";
-import { isPamfletUploadConfigured } from "../../lib/pamfletUpload";
+import { isPamfletUploadConfigured, uploadPamfletToDrive } from "../../lib/pamfletUpload";
+import { generatePamfletImage, PAMFLET_PALETTES, PamfletData } from "../../lib/pamfletGenerator";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
 import UploadPamfletButton from "../../components/UploadPamfletButton";
@@ -126,6 +127,17 @@ function KajianSettings() {
   const [ytLinkInput, setYtLinkInput] = useState("");
   const [ytSaving, setYtSaving] = useState(false);
 
+  // ---- Data pendukung buat pamflet otomatis (rekening Infaq, kontak
+  // WhatsApp & platform live dari Media Sosial, alamat dari Tentang
+  // Mushalla) -- cukup diambil sekali, read-only di sini. ----
+  const [rekeningList, setRekeningList] = useState<InfaqRekening[]>([]);
+  const [socialList, setSocialList] = useState<SocialLink[]>([]);
+  const [aboutAddress, setAboutAddress] = useState<string | null>(null);
+  const [pamfletPreview, setPamfletPreview] = useState<{ url: string; blob: Blob; paletteIndex: number } | null>(null);
+  const [pamfletGenerating, setPamfletGenerating] = useState(false);
+  const [pamfletApplying, setPamfletApplying] = useState(false);
+  const [pamfletError, setPamfletError] = useState<string | null>(null);
+
   const load = () =>
     supabase
       .from("kajian_schedule")
@@ -141,8 +153,115 @@ function KajianSettings() {
       .select("*")
       .order("nama", { ascending: true })
       .then(({ data }) => setUstadzList((data as Ustadz[]) ?? []));
+    supabase
+      .from("infaq_rekening")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => setRekeningList((data as InfaqRekening[]) ?? []));
+    supabase
+      .from("social_links")
+      .select("*")
+      .eq("is_active", true)
+      .then(({ data }) => setSocialList((data as SocialLink[]) ?? []));
+    supabase
+      .from("about_content")
+      .select("address")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setAboutAddress((data as AboutContent | null)?.address ?? null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Pamflet otomatis: susun data dari form + data pendukung, gambar ke
+  // canvas (generatePamfletImage), tampilkan pratinjau dulu sebelum
+  // diunggah ke Drive -- supaya admin bisa "Buat Ulang" (ganti tema warna)
+  // kalau hasilnya kurang pas, tanpa langsung ke-upload. ----
+  const buildPamfletBlob = async (paletteIndex: number) => {
+    if (!form.title.trim() || !form.tanggal || !form.time_text.trim()) {
+      throw new Error("Isi dulu Judul Kajian, Tanggal, dan Jam sebelum membuat pamflet otomatis.");
+    }
+    const ustadzValue = form.ustadz === "__custom__" ? form.ustadzCustom.trim() : form.ustadz;
+    const [y, m, d] = form.tanggal.split("-").map(Number);
+    const hijriLabel = await fetchHijriDateID(new Date(y, m - 1, d));
+
+    const waLink = socialList.find((s) => s.platform.toLowerCase() === "whatsapp");
+    let whatsapp: string | null = null;
+    if (waLink) {
+      try {
+        const phone = new URL(waLink.url).searchParams.get("phone");
+        whatsapp = phone ? `wa.me/${phone.replace(/^0/, "62")}` : waLink.display_name || waLink.url;
+      } catch {
+        whatsapp = waLink.display_name || waLink.url;
+      }
+    }
+    const livePlatforms = socialList
+      .filter((s) => ["facebook", "youtube", "instagram", "tiktok"].includes(s.platform.toLowerCase()))
+      .map((s) => s.platform.charAt(0).toUpperCase() + s.platform.slice(1));
+
+    const data: PamfletData = {
+      title: form.title.trim(),
+      ustadz: ustadzValue || null,
+      description: form.description.trim() || null,
+      dateLabel: formatTanggalPanjang(form.tanggal),
+      hijriLabel,
+      timeText: form.time_text.trim(),
+      location: form.location.trim() || aboutAddress,
+      rekening: rekeningList.map((r) => ({
+        bank_name: r.bank_name,
+        account_number: r.account_number,
+        account_holder: r.account_holder,
+      })),
+      whatsapp,
+      livePlatforms,
+      orgName: "Al Amanah GKN I Denpasar",
+    };
+    return generatePamfletImage(data, paletteIndex);
+  };
+
+  const generatePamflet = async (paletteIndex: number) => {
+    setPamfletError(null);
+    setPamfletGenerating(true);
+    try {
+      const blob = await buildPamfletBlob(paletteIndex);
+      setPamfletPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev.url);
+        return { url: URL.createObjectURL(blob), blob, paletteIndex };
+      });
+    } catch (err) {
+      setPamfletError(err instanceof Error ? err.message : "Gagal membuat pamflet otomatis.");
+    } finally {
+      setPamfletGenerating(false);
+    }
+  };
+
+  const regeneratePamflet = () => {
+    const next = ((pamfletPreview?.paletteIndex ?? -1) + 1) % PAMFLET_PALETTES.length;
+    generatePamflet(next);
+  };
+
+  const closePamfletPreview = () => {
+    setPamfletPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+    setPamfletError(null);
+  };
+
+  const applyPamflet = async () => {
+    if (!pamfletPreview) return;
+    setPamfletApplying(true);
+    setPamfletError(null);
+    try {
+      const file = new File([pamfletPreview.blob], `pamflet-otomatis-${Date.now()}.png`, { type: "image/png" });
+      const link = await uploadPamfletToDrive(file);
+      setForm((f) => ({ ...f, foto_url: link }));
+      closePamfletPreview();
+    } catch (err) {
+      setPamfletError(err instanceof Error ? err.message : "Gagal mengunggah pamflet ke Google Drive.");
+    } finally {
+      setPamfletApplying(false);
+    }
+  };
 
   // Preview Hari & Tanggal Hijriah + ambil jam Dzuhur/Maghrib tanggal terkait
   // (dipakai untuk auto-label "Ba'da ..." saat memilih Jam).
@@ -343,8 +462,19 @@ function KajianSettings() {
           <label className="label">Pamflet (opsional)</label>
           <div className="flex flex-wrap items-center gap-2">
             <UploadPamfletButton onUploaded={(link) => setForm((f) => ({ ...f, foto_url: link }))} />
+            {isPamfletUploadConfigured() && (
+              <button
+                type="button"
+                className="btn-secondary text-xs !py-1.5"
+                disabled={pamfletGenerating}
+                onClick={() => generatePamflet(Math.floor(Math.random() * PAMFLET_PALETTES.length))}
+              >
+                {pamfletGenerating ? "Membuat..." : "🎨 Buat Otomatis"}
+              </button>
+            )}
             {isPamfletUploadConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
           </div>
+          {pamfletError && !pamfletPreview && <p className="text-xs text-red-600 mt-1">{pamfletError}</p>}
           <input
             className="input mt-2"
             placeholder="https://drive.google.com/file/d/..."
@@ -522,6 +652,31 @@ function KajianSettings() {
                 {photoSaving ? "Menyimpan..." : "Simpan Link"}
               </button>
               <button className="btn-secondary" onClick={closePhoto}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pamfletPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="card max-w-lg w-full">
+            <h3 className="font-semibold text-gray-800 mb-1">Pratinjau Pamflet Otomatis</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Tema warna: {PAMFLET_PALETTES[pamfletPreview.paletteIndex].name}. Kalau kurang pas, klik "Buat Ulang" untuk
+              coba tema warna lain -- belum ke-upload ke Drive sebelum kamu klik "Pakai Pamflet Ini".
+            </p>
+            <img src={pamfletPreview.url} alt="Pratinjau pamflet" className="w-full rounded-lg border border-gray-100 mb-3" />
+            {pamfletError && <p className="text-xs text-red-600 mb-2">{pamfletError}</p>}
+            <div className="flex flex-wrap gap-2">
+              <button className="btn-primary flex-1" disabled={pamfletApplying} onClick={applyPamflet}>
+                {pamfletApplying ? "Mengunggah ke Drive..." : "✅ Pakai Pamflet Ini"}
+              </button>
+              <button className="btn-secondary" disabled={pamfletGenerating || pamfletApplying} onClick={regeneratePamflet}>
+                {pamfletGenerating ? "Membuat..." : "🔄 Buat Ulang"}
+              </button>
+              <button className="btn-secondary" disabled={pamfletApplying} onClick={closePamfletPreview}>
                 Batal
               </button>
             </div>

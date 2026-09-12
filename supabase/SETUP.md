@@ -230,6 +230,14 @@ dibagikan "siapa saja yang punya link", dan link-nya otomatis tersimpan -- tidak
 lagi buka Google Drive manual lalu tempel link. Ini opsional -- kalau langkah ini
 dilewati, form Pamflet tetap bisa dipakai dengan cara tempel link manual seperti biasa.
 
+Setelah langkah ini aktif, tombol **"🎨 Buat Otomatis"** juga otomatis muncul di form
+yang sama: pamfletnya digambar sendiri oleh aplikasi (judul, ustadz, tanggal (Masehi +
+perkiraan Hijriah), jam, lokasi, rekening Infaq, kontak WhatsApp, dan platform live --
+semua diambil dari data yang sudah diisi di Dashboard, tidak perlu desain manual di
+Canva dkk), lalu diunggah lewat jalur Google Drive yang sama persis seperti di atas.
+Ada beberapa pilihan tema warna yang bisa diganti-ganti (tombol "Buat Ulang") sebelum
+dipakai.
+
 Caranya lewat **Google Apps Script (GAS)** -- jauh lebih sederhana daripada bikin OAuth
 di Google Cloud Console: tidak perlu OAuth consent screen, tidak perlu daftar Test user,
 dan siapa pun yang pakai tombol upload ini **tidak perlu login Google sendiri** --

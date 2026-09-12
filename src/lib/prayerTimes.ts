@@ -27,15 +27,19 @@ function toYMD(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+interface HijriRaw {
+  day: string;
+  monthNumber: number;
+  monthEn: string;
+  year: string;
+}
+
 /** Cache in-memory hasil konversi Masehi->Hijriah per tanggal (key: "YYYY-MM-DD"),
  * supaya tanggal yang sama tidak di-fetch berulang-ulang ke API (dipakai lintas
- * komponen, mis. daftar Jadwal Khatib Jumat). */
-const hijriCache = new Map<string, string | null>();
+ * komponen, mis. daftar Jadwal Khatib Jumat, dan generator pamflet otomatis). */
+const hijriCache = new Map<string, HijriRaw | null>();
 
-/** Ambil tanggal Hijriah untuk SATU tanggal Masehi tertentu saja (lebih ringan
- * dari fetchPrayerTimes karena tidak perlu hitung jadwal shalat lengkap).
- * Dipakai di tempat yang cuma butuh tanggal Hijriah, mis. Jadwal Khatib Jumat. */
-export async function fetchHijriDate(date: Date): Promise<string | null> {
+async function fetchHijriRaw(date: Date): Promise<HijriRaw | null> {
   const key = toYMD(date);
   if (hijriCache.has(key)) return hijriCache.get(key)!;
   const dmy = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
@@ -44,13 +48,50 @@ export async function fetchHijriDate(date: Date): Promise<string | null> {
     if (!res.ok) throw new Error("Gagal mengambil tanggal Hijriah");
     const json = await res.json();
     const h = json.data?.hijri;
-    const result: string | null = h ? `${h.day} ${h.month.en} ${h.year} H` : null;
+    const result: HijriRaw | null = h
+      ? { day: h.day, monthNumber: h.month?.number, monthEn: h.month?.en, year: h.year }
+      : null;
     hijriCache.set(key, result);
     return result;
   } catch {
     hijriCache.set(key, null);
     return null;
   }
+}
+
+/** Ambil tanggal Hijriah untuk SATU tanggal Masehi tertentu saja (lebih ringan
+ * dari fetchPrayerTimes karena tidak perlu hitung jadwal shalat lengkap).
+ * Dipakai di tempat yang cuma butuh tanggal Hijriah, mis. Jadwal Khatib Jumat.
+ * Nama bulan berbahasa Inggris (apa adanya dari API Aladhan). */
+export async function fetchHijriDate(date: Date): Promise<string | null> {
+  const h = await fetchHijriRaw(date);
+  return h ? `${h.day} ${h.monthEn} ${h.year} H` : null;
+}
+
+const HIJRI_MONTH_ID = [
+  "Muharram",
+  "Safar",
+  "Rabiul Awal",
+  "Rabiul Akhir",
+  "Jumadil Awal",
+  "Jumadil Akhir",
+  "Rajab",
+  "Sya'ban",
+  "Ramadhan",
+  "Syawal",
+  "Dzulkaidah",
+  "Dzulhijjah",
+];
+
+/** Sama seperti fetchHijriDate, tapi nama bulannya sudah diterjemahkan ke
+ * bahasa Indonesia (mis. "4 Sya'ban 1447 H") -- dipakai di generator pamflet
+ * otomatis. Perkiraan hasil hisab algoritmik dari API, bisa beda 1 hari dari
+ * penetapan resmi (sidang isbat/rukyat). */
+export async function fetchHijriDateID(date: Date): Promise<string | null> {
+  const h = await fetchHijriRaw(date);
+  if (!h) return null;
+  const monthId = HIJRI_MONTH_ID[(h.monthNumber || 1) - 1] ?? h.monthEn;
+  return `${h.day} ${monthId} ${h.year} H`;
 }
 
 /** Ambil tanggal Hijriah untuk BANYAK tanggal Masehi ("YYYY-MM-DD") sekaligus,
