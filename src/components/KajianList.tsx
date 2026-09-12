@@ -11,15 +11,7 @@ function formatTanggal(tgl: string) {
   return new Date(y, m - 1, d).toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 }
 
-interface Props {
-  /** Batas tinggi card (px), dipakai supaya card ini mengikuti tinggi card
-   * Jadwal Khatib Jumat di beranda -- kalau isinya lebih panjang dari itu,
-   * daftarnya scroll sendiri (lihat Landing.tsx). null/undefined = tinggi
-   * alami (dipakai saat card ditumpuk di layar HP). */
-  maxHeight?: number | null;
-}
-
-export default function KajianList({ maxHeight }: Props) {
+export default function KajianList() {
   const [items, setItems] = useState<KajianSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [bulan, setBulan] = useState(bulanKeySekarang());
@@ -49,8 +41,13 @@ export default function KajianList({ maxHeight }: Props) {
     [items, bulan]
   );
 
+  // Tinggi card ditetapkan tetap (bukan mengikuti tinggi card Jadwal Khatib
+  // Jumat secara dinamis) supaya keduanya sejajar rapi di beranda tanpa
+  // saling bergantung -- kalau isinya lebih panjang, daftarnya scroll
+  // sendiri. Cuma berlaku di layar md ke atas; di HP tinggi mengikuti isi
+  // (natural) karena card ditumpuk vertikal.
   return (
-    <div className="card flex flex-col" style={maxHeight ? { height: maxHeight } : undefined}>
+    <div className="card flex flex-col md:h-[460px]">
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap shrink-0">
         <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Kajian</h3>
         <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>

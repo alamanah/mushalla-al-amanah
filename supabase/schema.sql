@@ -69,6 +69,7 @@ create table if not exists public.kajian_schedule (
   location text,
   description text,
   foto_url text, -- gambar pamflet kajian, ditampilkan di beranda
+  link_youtube text, -- link YouTube manual (opsional), di luar deteksi live otomatis
   live_video_id text, -- ID video YouTube yang sedang live (auto terdeteksi via YouTube Data API)
   live_by_name text, -- nama user humas yang terakhir menekan tombol "Mulai Live"
   live_started_at timestamptz, -- jam terakhir tombol "Mulai Live" ditekan

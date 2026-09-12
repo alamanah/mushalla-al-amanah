@@ -6,6 +6,19 @@ import { isPamfletUploadConfigured } from "../../lib/pamfletUpload";
 import { todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
 import UploadPamfletButton from "../../components/UploadPamfletButton";
+import IconButton from "../../components/IconButton";
+import {
+  IconCheckBadge,
+  IconClock,
+  IconEye,
+  IconEyeOff,
+  IconImage,
+  IconLiveDot,
+  IconRefresh,
+  IconStop,
+  IconTrash,
+  IconYoutube,
+} from "../../components/icons";
 import {
   AboutContent,
   InfaqInfo,
@@ -92,6 +105,7 @@ const emptyKajianForm = {
   location: DEFAULT_LOKASI,
   description: "",
   foto_url: "",
+  link_youtube: "",
 };
 
 function KajianSettings() {
@@ -105,6 +119,10 @@ function KajianSettings() {
   const [photoItem, setPhotoItem] = useState<KajianSchedule | null>(null);
   const [photoLinkInput, setPhotoLinkInput] = useState("");
   const [photoSaving, setPhotoSaving] = useState(false);
+
+  const [ytItem, setYtItem] = useState<KajianSchedule | null>(null);
+  const [ytLinkInput, setYtLinkInput] = useState("");
+  const [ytSaving, setYtSaving] = useState(false);
 
   const load = () =>
     supabase
@@ -169,6 +187,7 @@ function KajianSettings() {
       location: form.location || DEFAULT_LOKASI,
       description: form.description || null,
       foto_url: form.foto_url.trim() || null,
+      link_youtube: form.link_youtube.trim() || null,
       is_active: true,
     });
     setSaving(false);
@@ -203,6 +222,24 @@ function KajianSettings() {
     await supabase.from("kajian_schedule").update({ foto_url: photoLinkInput.trim() || null }).eq("id", photoItem.id);
     setPhotoSaving(false);
     closePhoto();
+    load();
+  };
+
+  // ---- Link YouTube manual (di luar deteksi live otomatis) ----
+  const openYt = (k: KajianSchedule) => {
+    setYtItem(k);
+    setYtLinkInput(k.link_youtube ?? "");
+  };
+  const closeYt = () => {
+    setYtItem(null);
+    setYtLinkInput("");
+  };
+  const saveYtLink = async () => {
+    if (!ytItem) return;
+    setYtSaving(true);
+    await supabase.from("kajian_schedule").update({ link_youtube: ytLinkInput.trim() || null }).eq("id", ytItem.id);
+    setYtSaving(false);
+    closeYt();
     load();
   };
 
@@ -318,6 +355,16 @@ function KajianSettings() {
           )}
         </div>
 
+        <div>
+          <label className="label">Link YouTube (opsional)</label>
+          <input
+            className="input"
+            placeholder="https://youtube.com/..."
+            value={form.link_youtube}
+            onChange={(e) => setForm({ ...form, link_youtube: e.target.value })}
+          />
+        </div>
+
         <button className="btn-primary sm:col-span-3" disabled={saving}>
           {saving ? "Menyimpan..." : "Tambah Jadwal"}
         </button>
@@ -359,48 +406,79 @@ function KajianSettings() {
                       Live terakhir dimulai oleh {k.live_by_name}, {formatJamLog(k.live_started_at)}
                     </p>
                   )}
-                </div>
-                <div className="flex flex-col gap-1.5 items-end shrink-0">
-                  <div className="flex gap-2 items-center">
-                    <button
-                      className={`badge ${k.is_active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-500"}`}
-                      onClick={() => toggleActive(k.id, k.is_active)}
+                  {k.link_youtube && (
+                    <a
+                      href={k.link_youtube}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary-700 hover:underline inline-block mt-0.5"
                     >
-                      {k.is_active ? "Aktif" : "Nonaktif"}
-                    </button>
-                    <button className="text-xs text-primary-700" onClick={() => openPhoto(k)}>
-                      {k.foto_url ? "Ganti Link Pamflet" : "Tambah Link Pamflet"}
-                    </button>
-                    <button className="text-red-500 text-xs" onClick={() => remove(k.id)}>
-                      Hapus
-                    </button>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    {k.live_video_id ? (
-                      <button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => endLive(k)}>
-                        Akhiri Live
-                      </button>
-                    ) : (
-                      <button className="btn-primary !py-1 !px-2 text-xs !bg-red-600 hover:!bg-red-700" onClick={() => startLive(k)}>
-                        Mulai Live
-                      </button>
-                    )}
-                    {isYoutubeLiveConfigured() && !k.live_video_id && (
-                      <button
-                        className="text-xs text-gray-500 hover:text-primary-700"
-                        onClick={() => checkLiveNow(k)}
-                        disabled={isPolling}
-                      >
-                        {isPolling ? "Mengecek..." : "Cek Status"}
-                      </button>
-                    )}
-                  </div>
+                      Link YouTube
+                    </a>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1 items-center shrink-0">
+                  <IconButton
+                    label={k.is_active ? "Aktif (klik untuk nonaktifkan)" : "Nonaktif (klik untuk aktifkan)"}
+                    variant={k.is_active ? "active" : "muted"}
+                    onClick={() => toggleActive(k.id, k.is_active)}
+                  >
+                    {k.is_active ? <IconEye className="h-4 w-4" /> : <IconEyeOff className="h-4 w-4" />}
+                  </IconButton>
+                  <IconButton label={k.foto_url ? "Ganti Link Pamflet" : "Tambah Link Pamflet"} onClick={() => openPhoto(k)}>
+                    <IconImage className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton label={k.link_youtube ? "Ganti Link YouTube" : "Tambah Link YouTube"} onClick={() => openYt(k)}>
+                    <IconYoutube className="h-4 w-4" />
+                  </IconButton>
+                  {k.live_video_id ? (
+                    <IconButton label="Akhiri Live" variant="live" onClick={() => endLive(k)}>
+                      <IconStop className="h-4 w-4" />
+                    </IconButton>
+                  ) : (
+                    <IconButton label="Mulai Live" variant="live" onClick={() => startLive(k)}>
+                      <IconLiveDot className="h-4 w-4" />
+                    </IconButton>
+                  )}
+                  {isYoutubeLiveConfigured() && !k.live_video_id && (
+                    <IconButton label="Cek Status Live" onClick={() => checkLiveNow(k)} disabled={isPolling}>
+                      <IconRefresh className={`h-4 w-4 ${isPolling ? "animate-spin" : ""}`} />
+                    </IconButton>
+                  )}
+                  <IconButton label="Hapus Jadwal" variant="danger" onClick={() => remove(k.id)}>
+                    <IconTrash className="h-4 w-4" />
+                  </IconButton>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {ytItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="card max-w-sm w-full">
+            <h3 className="font-semibold text-gray-800 mb-1">{ytItem.title}</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Link YouTube manual (opsional) -- di luar deteksi live otomatis, mis. link premiere/rekaman terjadwal.
+            </p>
+            <input
+              className="input"
+              placeholder="https://youtube.com/..."
+              value={ytLinkInput}
+              onChange={(e) => setYtLinkInput(e.target.value)}
+            />
+            <div className="flex gap-2 mt-3">
+              <button className="btn-primary flex-1" disabled={ytSaving} onClick={saveYtLink}>
+                {ytSaving ? "Menyimpan..." : "Simpan Link"}
+              </button>
+              <button className="btn-secondary" onClick={closeYt}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {photoItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -454,6 +532,10 @@ function KhatibJumatSettings() {
   const [saving, setSaving] = useState(false);
   const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
   const [hijriFormPreview, setHijriFormPreview] = useState<string | null>(null);
+
+  const [ytItem, setYtItem] = useState<KhatibJumatSchedule | null>(null);
+  const [ytLinkInput, setYtLinkInput] = useState("");
+  const [ytSaving, setYtSaving] = useState(false);
 
   const load = () =>
     supabase
@@ -535,6 +617,24 @@ function KhatibJumatSettings() {
 
   const remove = async (id: string) => {
     await supabase.from("khatib_jumat_schedule").delete().eq("id", id);
+    load();
+  };
+
+  // ---- Link YouTube manual (bisa diubah lagi setelah jadwal dibuat) ----
+  const openYt = (k: KhatibJumatSchedule) => {
+    setYtItem(k);
+    setYtLinkInput(k.link_youtube ?? "");
+  };
+  const closeYt = () => {
+    setYtItem(null);
+    setYtLinkInput("");
+  };
+  const saveYtLink = async () => {
+    if (!ytItem) return;
+    setYtSaving(true);
+    await supabase.from("khatib_jumat_schedule").update({ link_youtube: ytLinkInput.trim() || null }).eq("id", ytItem.id);
+    setYtSaving(false);
+    closeYt();
     load();
   };
 
@@ -624,68 +724,89 @@ function KhatibJumatSettings() {
                     {formatTanggalPanjang(k.tanggal)}
                     {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
                   </p>
-                  <button
-                    className={`badge mt-1 ${
-                      k.is_confirmed ? "bg-primary-100 text-primary-700" : "bg-yellow-100 text-yellow-700"
-                    }`}
-                    onClick={() => toggleConfirmed(k.id, k.is_confirmed)}
-                  >
-                    {k.is_confirmed ? "✓ Terkonfirmasi" : "Belum Dikonfirmasi"}
-                  </button>
-                  {k.link_youtube && (
-                    <a
-                      href={k.link_youtube}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-primary-700 hover:underline"
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <IconButton
+                      label={k.is_confirmed ? "Terkonfirmasi (klik untuk batalkan)" : "Belum Dikonfirmasi (klik untuk tandai)"}
+                      variant={k.is_confirmed ? "active" : "muted"}
+                      onClick={() => toggleConfirmed(k.id, k.is_confirmed)}
+                      className="!h-6 !w-6"
                     >
-                      Link YouTube
-                    </a>
-                  )}
+                      {k.is_confirmed ? <IconCheckBadge className="h-3.5 w-3.5" /> : <IconClock className="h-3.5 w-3.5" />}
+                    </IconButton>
+                    {k.link_youtube && (
+                      <a
+                        href={k.link_youtube}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary-700 hover:underline"
+                      >
+                        Link YouTube
+                      </a>
+                    )}
+                  </div>
                   {k.live_by_name && (
                     <p className="text-xs text-gray-400 mt-0.5">
                       Live terakhir dimulai oleh {k.live_by_name}, {formatJamLog(k.live_started_at)}
                     </p>
                   )}
                 </div>
-                <div className="flex flex-col gap-1.5 items-end shrink-0">
-                  <div className="flex gap-2 items-center">
-                    <button
-                      className={`badge ${k.is_active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-500"}`}
-                      onClick={() => toggleActive(k.id, k.is_active)}
-                    >
-                      {k.is_active ? "Aktif" : "Nonaktif"}
-                    </button>
-                    <button className="text-red-500 text-xs" onClick={() => remove(k.id)}>
-                      Hapus
-                    </button>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    {k.live_video_id ? (
-                      <button className="btn-secondary !py-1 !px-2 text-xs" onClick={() => endLive(k)}>
-                        Akhiri Live
-                      </button>
-                    ) : (
-                      <button className="btn-primary !py-1 !px-2 text-xs !bg-red-600 hover:!bg-red-700" onClick={() => startLive(k)}>
-                        Mulai Live
-                      </button>
-                    )}
-                    {isYoutubeLiveConfigured() && !k.live_video_id && (
-                      <button
-                        className="text-xs text-gray-500 hover:text-primary-700"
-                        onClick={() => checkLiveNow(k)}
-                        disabled={isPolling}
-                      >
-                        {isPolling ? "Mengecek..." : "Cek Status"}
-                      </button>
-                    )}
-                  </div>
+                <div className="flex flex-wrap gap-1 items-center shrink-0">
+                  <IconButton
+                    label={k.is_active ? "Aktif (klik untuk nonaktifkan)" : "Nonaktif (klik untuk aktifkan)"}
+                    variant={k.is_active ? "active" : "muted"}
+                    onClick={() => toggleActive(k.id, k.is_active)}
+                  >
+                    {k.is_active ? <IconEye className="h-4 w-4" /> : <IconEyeOff className="h-4 w-4" />}
+                  </IconButton>
+                  <IconButton label={k.link_youtube ? "Ganti Link YouTube" : "Tambah Link YouTube"} onClick={() => openYt(k)}>
+                    <IconYoutube className="h-4 w-4" />
+                  </IconButton>
+                  {k.live_video_id ? (
+                    <IconButton label="Akhiri Live" variant="live" onClick={() => endLive(k)}>
+                      <IconStop className="h-4 w-4" />
+                    </IconButton>
+                  ) : (
+                    <IconButton label="Mulai Live" variant="live" onClick={() => startLive(k)}>
+                      <IconLiveDot className="h-4 w-4" />
+                    </IconButton>
+                  )}
+                  {isYoutubeLiveConfigured() && !k.live_video_id && (
+                    <IconButton label="Cek Status Live" onClick={() => checkLiveNow(k)} disabled={isPolling}>
+                      <IconRefresh className={`h-4 w-4 ${isPolling ? "animate-spin" : ""}`} />
+                    </IconButton>
+                  )}
+                  <IconButton label="Hapus Jadwal" variant="danger" onClick={() => remove(k.id)}>
+                    <IconTrash className="h-4 w-4" />
+                  </IconButton>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {ytItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="card max-w-sm w-full">
+            <h3 className="font-semibold text-gray-800 mb-1">{ytItem.nama_ustadz}</h3>
+            <p className="text-xs text-gray-500 mb-3">Link YouTube (opsional) untuk jadwal khatib Jumat ini.</p>
+            <input
+              className="input"
+              placeholder="https://youtube.com/..."
+              value={ytLinkInput}
+              onChange={(e) => setYtLinkInput(e.target.value)}
+            />
+            <div className="flex gap-2 mt-3">
+              <button className="btn-primary flex-1" disabled={ytSaving} onClick={saveYtLink}>
+                {ytSaving ? "Menyimpan..." : "Simpan Link"}
+              </button>
+              <button className="btn-secondary" onClick={closeYt}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -297,6 +297,16 @@ export default function Calendar() {
                       </p>
                       {item.data.location && <p className="text-xs text-gray-400 mt-0.5">{item.data.location}</p>}
                       {item.data.description && <p className="text-xs text-gray-400 mt-1">{item.data.description}</p>}
+                      {item.data.link_youtube && (
+                        <a
+                          href={item.data.link_youtube}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-primary-700 hover:underline mt-1 inline-block"
+                        >
+                          Link YouTube
+                        </a>
+                      )}
                     </>
                   ) : (
                     <>

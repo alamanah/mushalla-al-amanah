@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { fetchHijriMap } from "../lib/prayerTimes";
 import { bulanKeyDari, bulanKeySekarang, bulanOptionsDari, labelBulan } from "../lib/bulanFilter";
@@ -13,11 +13,12 @@ function formatTanggal(tgl: string) {
  * Card jadwal Khatib Jumat di beranda -- sengaja dibuat ringkas (hanya nama
  * ustadz & tanggal khutbah), beda dari card Jadwal Kajian yang lebih
  * lengkap. Cuma menampilkan jadwal pada bulan yang dipilih (default bulan
- * berjalan) lewat dropdown di pojok kanan atas. Pakai forwardRef supaya
- * tinggi card ini bisa diukur dari Landing.tsx -- card Jadwal Kajian
- * mengikuti tinggi card ini (lihat Landing.tsx).
+ * berjalan) lewat dropdown di pojok kanan atas. Tinggi card ditetapkan
+ * tetap (sama persis dengan card Jadwal Kajian, lihat KajianList.tsx) supaya
+ * keduanya sejajar rapi tanpa saling bergantung -- kalau isinya lebih
+ * panjang, daftarnya scroll sendiri.
  */
-const KhatibJumatList = forwardRef<HTMLDivElement>(function KhatibJumatList(_props, ref) {
+export default function KhatibJumatList() {
   const [items, setItems] = useState<KhatibJumatSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
@@ -41,8 +42,8 @@ const KhatibJumatList = forwardRef<HTMLDivElement>(function KhatibJumatList(_pro
   const itemsBulanIni = useMemo(() => items.filter((k) => bulanKeyDari(k.tanggal) === bulan), [items, bulan]);
 
   return (
-    <div className="card" ref={ref}>
-      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+    <div className="card flex flex-col md:h-[460px]">
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap shrink-0">
         <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Khatib Jumat</h3>
         <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>
           {bulanOptions.map((b) => (
@@ -56,7 +57,7 @@ const KhatibJumatList = forwardRef<HTMLDivElement>(function KhatibJumatList(_pro
       {!loading && itemsBulanIni.length === 0 && (
         <p className="text-sm text-gray-400">Belum ada jadwal khatib Jumat pada bulan ini.</p>
       )}
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y divide-gray-100 flex-1 min-h-0 overflow-y-auto">
         {itemsBulanIni.map((k) => (
           <li key={k.id} className="py-3">
             <div className="flex items-center gap-2 flex-wrap">
@@ -83,6 +84,4 @@ const KhatibJumatList = forwardRef<HTMLDivElement>(function KhatibJumatList(_pro
       </ul>
     </div>
   );
-});
-
-export default KhatibJumatList;
+}

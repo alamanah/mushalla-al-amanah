@@ -28,6 +28,7 @@ export interface KajianSchedule {
   location: string | null;
   description: string | null;
   foto_url: string | null;
+  link_youtube: string | null;
   live_video_id: string | null;
   live_by_name: string | null;
   live_started_at: string | null;
