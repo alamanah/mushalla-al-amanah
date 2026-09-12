@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import { sanitizeArticleHtml } from "../lib/sanitizeHtml";
+import { ARTICLE_CONTENT_CLASSNAME } from "../components/RichTextEditor";
 import { Article } from "../types";
 
 export default function ArticleDetail() {
@@ -65,7 +66,7 @@ export default function ArticleDetail() {
         {article.published_at ? ` · ${new Date(article.published_at).toLocaleDateString("id-ID")}` : ""}
       </p>
       <div
-        className="prose prose-sm max-w-none text-gray-700 leading-relaxed [&_p]:mb-3"
+        className={`max-w-none text-gray-700 leading-relaxed ${ARTICLE_CONTENT_CLASSNAME}`}
         dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(article.content) }}
       />
     </article>

@@ -206,3 +206,92 @@ export function IconLinkGlyph(props: IconProps) {
     </svg>
   );
 }
+
+// ---- Ikon toolbar editor teks kaya (RichTextEditor) ----
+
+export function IconAlignLeft(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h16M4 12h10M4 18h13" />
+    </svg>
+  );
+}
+
+export function IconAlignCenter(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h16M7 12h10M5.5 18h13" />
+    </svg>
+  );
+}
+
+export function IconAlignRight(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h16M10 12h10M7 18h13" />
+    </svg>
+  );
+}
+
+export function IconAlignJustify(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+export function IconListBullet(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
+      <path d="M9 6h11M9 12h11M9 18h11" />
+    </svg>
+  );
+}
+
+export function IconListNumber(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <text x="2.2" y="8.3" fontSize="6.5" fill="currentColor" stroke="none">
+        1
+      </text>
+      <text x="2.2" y="14.8" fontSize="6.5" fill="currentColor" stroke="none">
+        2
+      </text>
+      <text x="2.2" y="21.3" fontSize="6.5" fill="currentColor" stroke="none">
+        3
+      </text>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+    </svg>
+  );
+}
+
+export function IconQuote(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path
+        d="M7 8c-2 0-3.2 1.4-3.2 3.4 0 1.8 1.2 3 2.8 3 .3 0 .5 0 .7-.1-.3 1.6-1.4 2.8-2.8 3.3l.5 1.1c2.4-.7 4-2.6 4-5.4V11c0-1.8-.9-3-2-3Z"
+        fill="currentColor"
+        stroke="none"
+      />
+      <path
+        d="M15.5 8c-2 0-3.2 1.4-3.2 3.4 0 1.8 1.2 3 2.8 3 .3 0 .5 0 .7-.1-.3 1.6-1.4 2.8-2.8 3.3l.5 1.1c2.4-.7 4-2.6 4-5.4V11c0-1.8-.9-3-2-3Z"
+        fill="currentColor"
+        stroke="none"
+      />
+    </svg>
+  );
+}
+
+export function IconTextColor(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 15 11 5h2l4 10" />
+      <path d="M8.3 11.5h7.4" />
+      <rect x="4" y="18" width="16" height="3" rx="0.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

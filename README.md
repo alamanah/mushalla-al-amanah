@@ -102,10 +102,12 @@ ke tempat yang benar.
 - **Laporan Keuangan** (`/keuangan`): transparan untuk publik, dikelola oleh bendahara.
 - **Bacaan** (`/bacaan`): artikel dari jamaah, tayang setelah disetujui admin, dengan
   paginasi (10 artikel/halaman). Menulis artikel (`/bacaan/tulis`) memerlukan akun
-  yang sudah **diverifikasi** admin -- isinya bisa diformat (bold/italic/underline)
-  lewat editor bawaan. Penulis (atau admin) bisa mengubah artikelnya lagi kapan pun
-  lewat tombol "Ubah" (`/bacaan/edit/:id`) -- kalau yang mengubah bukan admin dan
-  artikelnya sudah terbit, statusnya otomatis balik ke "Menunggu Review".
+  yang sudah **diverifikasi** admin -- isinya bisa diformat lewat editor bawaan:
+  bold/italic/underline, rata kiri/tengah/kanan/kiri-kanan, daftar bullet & bernomor,
+  kutipan (blockquote), sisipkan tautan, dan warna teks. Penulis (atau admin) bisa
+  mengubah artikelnya lagi kapan pun lewat tombol "Ubah" (`/bacaan/edit/:id`) --
+  kalau yang mengubah bukan admin dan artikelnya sudah terbit, statusnya otomatis
+  balik ke "Menunggu Review".
 - **Dashboard** (`/dashboard`, perlu login + role):
   - **Verifikasi User** (admin): approve/reject jamaah baru, atur role.
   - **Moderasi Artikel** (admin): setujui/tolak/ubah artikel.
