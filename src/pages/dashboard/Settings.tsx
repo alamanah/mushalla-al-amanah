@@ -141,6 +141,11 @@ function KajianSettings() {
   const [socialList, setSocialList] = useState<SocialLink[]>([]);
   const [aboutAddress, setAboutAddress] = useState<string | null>(null);
   const [pamfletTemplate, setPamfletTemplate] = useState<PamfletTemplate>("kajian-rutin");
+  // Latar belakang kustom (opsional, khusus template Kajian Rutin) --
+  // gambar yang diunggah admin sendiri (bukan diambil otomatis dari
+  // internet), dipotong otomatis mengikuti rasio pamflet.
+  const [pamfletBgFile, setPamfletBgFile] = useState<File | null>(null);
+  const [pamfletBgPreviewUrl, setPamfletBgPreviewUrl] = useState<string | null>(null);
   const [pamfletPreview, setPamfletPreview] = useState<{
     url: string;
     blob: Blob;
@@ -228,7 +233,25 @@ function KajianSettings() {
       livePlatforms,
       orgName: "Al Amanah GKN I Denpasar",
     };
-    return generatePamfletImage(data, template, paletteIndex);
+
+    // Latar kustom (kalau diunggah admin sendiri) -- dimuat sebagai gambar
+    // lalu dilepas lagi dari memori begitu selesai dipakai.
+    let bgImage: HTMLImageElement | null = null;
+    let bgObjectUrl: string | null = null;
+    if (template === "kajian-rutin" && pamfletBgFile) {
+      bgObjectUrl = URL.createObjectURL(pamfletBgFile);
+      bgImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Gagal memuat gambar latar kustom yang diunggah."));
+        img.src = bgObjectUrl!;
+      });
+    }
+    try {
+      return await generatePamfletImage(data, template, paletteIndex, bgImage);
+    } finally {
+      if (bgObjectUrl) URL.revokeObjectURL(bgObjectUrl);
+    }
   };
 
   const generatePamflet = async (template: PamfletTemplate, paletteIndex: number) => {
@@ -306,7 +329,14 @@ function KajianSettings() {
     (k) => k.specific_date
   );
 
-  const resetForm = () => setForm(emptyKajianForm);
+  const resetForm = () => {
+    setForm(emptyKajianForm);
+    setPamfletBgPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPamfletBgFile(null);
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -501,6 +531,48 @@ function KajianSettings() {
             )}
             {isPamfletUploadConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
           </div>
+          {isPamfletUploadConfigured() && pamfletTemplate === "kajian-rutin" && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <label className="text-[11px] text-gray-500">
+                Latar belakang kustom (opsional):{" "}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="text-[11px] align-middle"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setPamfletBgPreviewUrl((prev) => {
+                      if (prev) URL.revokeObjectURL(prev);
+                      return file ? URL.createObjectURL(file) : null;
+                    });
+                    setPamfletBgFile(file);
+                  }}
+                />
+              </label>
+              {pamfletBgPreviewUrl && (
+                <>
+                  <img src={pamfletBgPreviewUrl} alt="Pratinjau latar" className="h-8 w-12 object-cover rounded border border-gray-200" />
+                  <button
+                    type="button"
+                    className="text-[11px] text-red-600 underline"
+                    onClick={() => {
+                      setPamfletBgPreviewUrl((prev) => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return null;
+                      });
+                      setPamfletBgFile(null);
+                    }}
+                  >
+                    Hapus
+                  </button>
+                </>
+              )}
+              <span className="text-[11px] text-gray-400 basis-full">
+                Kalau kosong, dipakai ilustrasi siluet masjid otomatis. Gambar yang diunggah otomatis dipotong
+                mengikuti ukuran pamflet.
+              </span>
+            </div>
+          )}
           {pamfletError && !pamfletPreview && <p className="text-xs text-red-600 mt-1">{pamfletError}</p>}
           <input
             className="input mt-2"

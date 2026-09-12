@@ -335,22 +335,81 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return `${t}…`;
 }
 
+/** Gambar bagian `img` ke kotak tujuan dengan perilaku macam CSS
+ * `background-size: cover` -- gambar diskalakan supaya menutup penuh kotak
+ * tujuan (tanpa gepeng), lalu bagian yang kelebihan dipotong di tengah.
+ * Dipakai untuk latar belakang kustom yang diunggah admin sendiri, supaya
+ * rasio gambar apa pun otomatis menyesuaikan rasio pamflet (1200x750). */
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource & { width: number; height: number },
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number
+) {
+  const iw = img.width;
+  const ih = img.height;
+  const imgRatio = iw / ih;
+  const boxRatio = dw / dh;
+  let sx: number, sy: number, sw: number, sh: number;
+  if (imgRatio > boxRatio) {
+    sh = ih;
+    sw = sh * boxRatio;
+    sx = (iw - sw) / 2;
+    sy = 0;
+  } else {
+    sw = iw;
+    sh = sw / boxRatio;
+    sx = 0;
+    sy = (ih - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+
+/** Ikon YouTube sederhana (sama dengan IconYoutubeGlyph di components/icons.tsx)
+ * -- kotak bulat + segitiga play, dipakai di baris "LIVE" pamflet. */
+function drawYoutubeIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size / 24, size / 24);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  roundedRectPath(ctx, 2.5, 5.5, 19, 13, 4);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fill(new Path2D("M10.3 9.4v5.2l4.8-2.6-4.8-2.6Z"));
+  ctx.restore();
+}
+
 /** Gambar satu pamflet kajian ke canvas lalu kembalikan sebagai Blob JPEG.
  * `paletteIndex` di-modulo otomatis, jadi aman dipanggil dengan indeks
- * berapa pun (dipakai tombol "Buat Ulang" untuk siklus ganti tema warna). */
-export async function generatePamfletImage(data: PamfletData, template: PamfletTemplate, paletteIndex = 0): Promise<Blob> {
+ * berapa pun (dipakai tombol "Buat Ulang" untuk siklus ganti tema warna).
+ * `customBackground` (khusus template "kajian-rutin") -- kalau diisi
+ * (gambar yang diunggah admin sendiri), dipakai sebagai latar (dipotong
+ * otomatis mengikuti rasio pamflet) menggantikan ilustrasi siluet masjid. */
+export async function generatePamfletImage(
+  data: PamfletData,
+  template: PamfletTemplate,
+  paletteIndex = 0,
+  customBackground?: HTMLImageElement | null
+): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Browser tidak mendukung Canvas 2D.");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   const arabicFont = await ensureAmiriFont();
   await document.fonts.load("700 40px Inter").catch(() => undefined);
 
   if (template === "kajian-rutin") {
     const palette = KAJIAN_RUTIN_PALETTES[normIndex(paletteIndex, KAJIAN_RUTIN_PALETTES.length)];
-    await drawKajianRutinTemplate(ctx, data, palette, arabicFont);
+    await drawKajianRutinTemplate(ctx, data, palette, arabicFont, customBackground ?? null);
   } else {
     const palette = PAMFLET_PALETTES[normIndex(paletteIndex, PAMFLET_PALETTES.length)];
     await drawOrnateTemplate(ctx, data, palette, arabicFont);
@@ -586,70 +645,82 @@ async function drawOrnateTemplate(ctx: CanvasRenderingContext2D, data: PamfletDa
 }
 
 // ============================================================================
-// Template 2: "kajian-rutin" -- ilustrasi siluet masjid + langit senja,
-// logo putih di tengah atas, kartu jadwal/lokasi hijau/biru.
+// Template 2: "kajian-rutin" -- ilustrasi siluet masjid + langit senja (atau
+// latar foto kustom unggahan admin), logo putih di tengah atas, kaligrafi
+// Bismillah dalam bingkai oval, kartu jadwal/lokasi hijau/biru.
 // ============================================================================
 async function drawKajianRutinTemplate(
   ctx: CanvasRenderingContext2D,
   data: PamfletData,
   palette: KajianRutinPalette,
-  arabicFont: string
+  arabicFont: string,
+  customBackground: HTMLImageElement | null
 ) {
   const centerX = WIDTH / 2;
 
-  // ---- Langit senja (ilustrasi, bukan foto) ----
-  const sky = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  sky.addColorStop(0, palette.skyTop);
-  sky.addColorStop(0.55, palette.skyMid);
-  sky.addColorStop(1, palette.skyBottom);
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  if (customBackground) {
+    // ---- Latar foto/gambar kustom unggahan admin sendiri -- dipotong
+    // otomatis mengikuti rasio pamflet (mirip CSS background-size: cover). ----
+    drawImageCover(ctx, customBackground, 0, 0, WIDTH, HEIGHT);
+  } else {
+    // ---- Langit senja (ilustrasi, bukan foto) ----
+    const sky = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    sky.addColorStop(0, palette.skyTop);
+    sky.addColorStop(0.55, palette.skyMid);
+    sky.addColorStop(1, palette.skyBottom);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Bintang kecil di langit atas -- dekorasi ringan.
-  ctx.save();
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
-  for (let i = 0; i < 46; i++) {
-    const sx = ((i * 953) % WIDTH) + ((i * 37) % 17);
-    const sy = ((i * 211) % (HEIGHT * 0.32)) + 8;
-    ctx.beginPath();
-    ctx.arc(sx, sy, i % 5 === 0 ? 1.4 : 0.7, 0, Math.PI * 2);
-    ctx.fill();
+    // Bintang kecil di langit atas -- dekorasi ringan.
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    for (let i = 0; i < 46; i++) {
+      const sx = ((i * 953) % WIDTH) + ((i * 37) % 17);
+      const sy = ((i * 211) % (HEIGHT * 0.32)) + 8;
+      ctx.beginPath();
+      ctx.arc(sx, sy, i % 5 === 0 ? 1.4 : 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // ---- Siluet masjid ----
+    drawMosqueSilhouette(ctx, palette.silhouette);
   }
-  ctx.restore();
 
-  // ---- Siluet masjid ----
-  drawMosqueSilhouette(ctx, palette.silhouette);
-
-  // ---- Overlay gradasi gelap supaya teks tetap terbaca di segala tema ----
+  // ---- Overlay gradasi gelap supaya teks tetap terbaca di segala latar,
+  // baik ilustrasi sendiri maupun foto unggahan (yang belum tentu gelap). ----
   const overlay = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  overlay.addColorStop(0, "rgba(0,0,0,0.45)");
-  overlay.addColorStop(0.38, "rgba(0,0,0,0.1)");
-  overlay.addColorStop(0.68, "rgba(0,0,0,0.2)");
-  overlay.addColorStop(1, "rgba(0,0,0,0.5)");
+  overlay.addColorStop(0, "rgba(0,0,0,0.5)");
+  overlay.addColorStop(0.35, "rgba(0,0,0,0.22)");
+  overlay.addColorStop(0.68, "rgba(0,0,0,0.28)");
+  overlay.addColorStop(1, "rgba(0,0,0,0.58)");
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  let y = 56;
+  let y = 68;
 
-  // ---- Logo putih di tengah atas ----
+  // ---- Logo putih di tengah atas (diperbesar + digambar halus supaya
+  // detail tulisan kecil di dalam logo tetap kebaca jelas). ----
   try {
     const logo = await loadImage(`${import.meta.env.BASE_URL}logo-al-amanah.png`);
     const whiteLogo = tintImageWhite(logo);
-    const h = 44;
+    const h = 78;
     const w = (h * whiteLogo.width) / whiteLogo.height;
-    ctx.drawImage(whiteLogo, centerX - w / 2, y - h * 0.8, w, h);
+    ctx.drawImage(whiteLogo, centerX - w / 2, y, w, h);
+    y += h;
   } catch {
     // Diam-diam lewati logo kalau gagal dimuat.
   }
   y += 40;
 
-  // ---- Bismillah ----
+  // ---- Kaligrafi Bismillah -- putih polos, tanpa bingkai lingkaran/oval. ----
+  ctx.font = `700 34px ${arabicFont}`;
+  const bismillahText = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 32px ${arabicFont}`;
-  ctx.fillText("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", centerX, y);
-  y += 50;
+  ctx.fillText(bismillahText, centerX, y + 16);
+  y += 84;
 
   // ---- Judul ----
   ctx.font = "700 42px Inter";
@@ -660,14 +731,14 @@ async function drawKajianRutinTemplate(
     ctx.font = `700 ${fitted.size}px Inter`;
     ctx.fillText(line, centerX, y + i * titleLineHeight);
   });
-  y += (fitted.lines.length - 1) * titleLineHeight + 20;
+  y += (fitted.lines.length - 1) * titleLineHeight + 34;
 
   // ---- "bersama: nama ustadz" + Hafidzahullahu ----
   if (data.ustadz) {
     ctx.font = "400 15px Inter";
     ctx.fillStyle = palette.accent;
     ctx.fillText("bersama:", centerX, y);
-    y += 30;
+    y += 32;
 
     ctx.font = "700 22px Inter";
     const nameText = truncate(ctx, data.ustadz, 640);
@@ -680,14 +751,14 @@ async function drawKajianRutinTemplate(
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
     ctx.fillText(nameText, centerX, y);
-    y += 34;
+    y += 38;
 
     ctx.font = "italic 400 16px Inter";
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.fillText("Hafidzahullahu", centerX, y);
-    y += 30;
+    y += 40;
   } else {
-    y += 12;
+    y += 16;
   }
 
   // ---- Kartu jadwal (kalender) + lokasi (map) ----
@@ -731,38 +802,42 @@ async function drawKajianRutinTemplate(
     ctx.fillText(locLines[1], midX + 68, cardY + cardH / 2 + 16);
   }
 
-  y = cardY + cardH + 38;
+  // ---- Bar bawah: Live (+ ikon YouTube) & sampai 2 Rekening Infaq ----
+  const rekList = data.rekening.slice(0, 2);
+  const rightLines = rekList.length
+    ? rekList.map((r) => `${r.bank_name}: ${r.account_number}`)
+    : ["Belum ada rekening aktif."];
+  const barLineCount = Math.max(1, rightLines.length);
+  const barH = 26 + barLineCount * 20;
+  const barTop = HEIGHT - 28 - barH;
 
-  // ---- Undangan Untuk Umum ----
-  ctx.textAlign = "center";
-  ctx.font = "700 15px Inter";
-  const inviteText = "UNDANGAN UNTUK UMUM";
-  const inviteW = ctx.measureText(inviteText).width;
-  roundedRectPath(ctx, centerX - inviteW / 2 - 22, y - 24, inviteW + 44, 34, 17);
-  ctx.strokeStyle = "rgba(255,255,255,0.75)";
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(inviteText, centerX, y);
-
-  // ---- Bar bawah: Live + Rekening Infaq ----
-  const barY = HEIGHT - 50;
   ctx.strokeStyle = "rgba(255,255,255,0.25)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(60, barY - 26);
-  ctx.lineTo(WIDTH - 60, barY - 26);
+  ctx.moveTo(60, barTop);
+  ctx.lineTo(WIDTH - 60, barTop);
   ctx.stroke();
 
-  ctx.font = "700 15px Inter";
-  ctx.fillStyle = "#ffffff";
+  const barCenterY = barTop + 14 + (barH - 14) / 2;
+
   if (data.livePlatforms.length) {
+    const liveText = `LIVE ${data.livePlatforms.join(" & ").toUpperCase()}`;
+    ctx.font = "700 15px Inter";
+    const hasYoutube = data.livePlatforms.some((p) => p.toLowerCase() === "youtube");
+    const iconGap = hasYoutube ? 26 : 0;
     ctx.textAlign = "left";
-    ctx.fillText(truncate(ctx, `● LIVE ${data.livePlatforms.join(" & ").toUpperCase()}`, 520), 60, barY);
+    ctx.fillStyle = "#ffffff";
+    if (hasYoutube) drawYoutubeIcon(ctx, 60, barCenterY - 11, 22, "#ffffff");
+    ctx.fillText(truncate(ctx, `● ${liveText}`, 480 - iconGap), 60 + iconGap, barCenterY + 5);
   }
-  const rek = data.rekening[0];
-  if (rek) {
-    ctx.textAlign = "right";
-    ctx.fillText(truncate(ctx, `INFAQ  ${rek.bank_name}: ${rek.account_number}`, 520), WIDTH - 60, barY);
-  }
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#ffffff";
+  const rightLineHeight = 20;
+  const rightBlockTop = barCenterY + 5 - ((rightLines.length - 1) * rightLineHeight) / 2 - (rightLines.length > 1 ? 4 : 0);
+  rightLines.forEach((line, i) => {
+    ctx.font = i === 0 && rightLines.length > 1 ? "700 14px Inter" : "700 15px Inter";
+    const prefix = rightLines.length > 1 ? "" : "INFAQ  ";
+    ctx.fillText(truncate(ctx, `${prefix}${line}`, 480), WIDTH - 60, rightBlockTop + i * rightLineHeight);
+  });
 }
