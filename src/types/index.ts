@@ -78,6 +78,7 @@ export interface InfaqRekening {
   bank_name: string;
   account_number: string;
   account_holder: string | null;
+  qris_url: string | null;
   sort_order: number;
   created_at: string;
 }

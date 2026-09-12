@@ -893,7 +893,7 @@ function InfaqUmumForm() {
   );
 }
 
-const emptyRekeningForm = { bank_name: "", account_number: "", account_holder: "" };
+const emptyRekeningForm = { bank_name: "", account_number: "", account_holder: "", qris_url: "" };
 
 /** Rekening bank Infaq & Shadaqah -- bisa lebih dari satu, beda dari
  * InfaqUmumForm (info umum & e-wallet cuma 1 baris) di atas. */
@@ -922,6 +922,7 @@ function InfaqRekeningManager() {
       bank_name: form.bank_name.trim(),
       account_number: form.account_number.trim(),
       account_holder: form.account_holder.trim() || null,
+      qris_url: form.qris_url.trim() || null,
       sort_order: items.length,
     });
     setSaving(false);
@@ -965,6 +966,15 @@ function InfaqRekeningManager() {
             onChange={(e) => setForm({ ...form, account_holder: e.target.value })}
           />
         </div>
+        <div className="sm:col-span-3">
+          <label className="label">URL Gambar QRIS Rekening Ini (opsional)</label>
+          <input
+            className="input"
+            placeholder="https://..."
+            value={form.qris_url}
+            onChange={(e) => setForm({ ...form, qris_url: e.target.value })}
+          />
+        </div>
         <button className="btn-primary sm:col-span-3" disabled={saving}>
           {saving ? "Menyimpan..." : "Tambah Rekening"}
         </button>
@@ -972,11 +982,16 @@ function InfaqRekeningManager() {
       <div className="space-y-2">
         {items.length === 0 && <p className="text-sm text-gray-400">Belum ada rekening bank ditambahkan.</p>}
         {items.map((r) => (
-          <div key={r.id} className="card flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-800">{r.bank_name}</p>
-              <p className="text-sm text-gray-600 tracking-wide">{r.account_number}</p>
-              {r.account_holder && <p className="text-xs text-gray-400">a.n. {r.account_holder}</p>}
+          <div key={r.id} className="card flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {r.qris_url && (
+                <img src={r.qris_url} alt="" className="w-10 h-10 object-contain rounded border border-gray-100 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <p className="font-medium text-gray-800">{r.bank_name}</p>
+                <p className="text-sm text-gray-600 tracking-wide">{r.account_number}</p>
+                {r.account_holder && <p className="text-xs text-gray-400">a.n. {r.account_holder}</p>}
+              </div>
             </div>
             <IconButton label="Hapus Rekening" variant="danger" onClick={() => remove(r.id)}>
               <IconTrash className="h-4 w-4" />

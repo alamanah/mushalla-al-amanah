@@ -45,7 +45,7 @@ export default function PrayerTimesCard() {
   };
 
   return (
-    <div className="card">
+    <div className="panel">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Shalat Hari Ini</h3>
         <span className="text-xs text-gray-400">Denpasar, WITA</span>

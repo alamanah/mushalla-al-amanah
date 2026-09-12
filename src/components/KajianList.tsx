@@ -24,6 +24,7 @@ export default function KajianList() {
   const [bulan, setBulan] = useState(bulanKeySekarang());
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     supabase
@@ -50,34 +51,60 @@ export default function KajianList() {
     [items, bulan]
   );
 
-  // Indeks slide "dibungkus" (modulo) terhadap daftar bulan yang sedang
-  // aktif, bukan disimpan mentah -- jadi kalau bulan diganti dan jumlah
+  // Disaring lagi berdasarkan nama ustadz yang diketik di kotak pencarian.
+  const itemsTampil = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return itemsBulanIni;
+    return itemsBulanIni.filter((k) => (k.ustadz ?? "").toLowerCase().includes(q));
+  }, [itemsBulanIni, search]);
+
+  // Indeks slide "dibungkus" (modulo) terhadap daftar yang sedang tampil,
+  // bukan disimpan mentah -- jadi kalau bulan/pencarian diganti dan jumlah
   // kajiannya beda, otomatis tetap dalam rentang valid tanpa perlu efek
   // terpisah untuk mereset state.
-  const total = itemsBulanIni.length;
+  const total = itemsTampil.length;
   const activeSlide = total > 0 ? ((slide % total) + total) % total : 0;
-  const current = itemsBulanIni[activeSlide];
+  const current = itemsTampil[activeSlide];
   const goTo = (i: number) => setSlide(((i % total) + total) % total);
+
+  // Carousel otomatis geser tiap beberapa detik selama ada lebih dari 1
+  // kajian yang tampil. Pakai functional update supaya interval tidak perlu
+  // dibuat ulang tiap slide berubah (cukup saat jumlah item berubah).
+  useEffect(() => {
+    if (total <= 1) return;
+    const id = setInterval(() => setSlide((s) => s + 1), 6000);
+    return () => clearInterval(id);
+  }, [total]);
 
   // Tinggi card ditetapkan tetap (bukan mengikuti tinggi card Jadwal Khatib
   // Jumat secara dinamis) supaya keduanya sejajar rapi di beranda tanpa
   // saling bergantung. Cuma berlaku di layar md ke atas; di HP tinggi
   // mengikuti isi (natural) karena card ditumpuk vertikal.
   return (
-    <div className="card flex flex-col md:h-[460px]">
-      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap shrink-0">
-        <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Kajian</h3>
-        <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>
-          {bulanOptions.map((b) => (
-            <option key={b} value={b}>
-              {labelBulan(b)}
-            </option>
-          ))}
-        </select>
+    <div className="panel flex flex-col md:h-[460px]">
+      <div className="mb-4 flex flex-col gap-2 shrink-0">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="font-serif font-bold text-lg text-primary-900">Jadwal Kajian</h3>
+          <select className="input !w-auto !py-1 !text-xs" value={bulan} onChange={(e) => setBulan(e.target.value)}>
+            {bulanOptions.map((b) => (
+              <option key={b} value={b}>
+                {labelBulan(b)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <input
+          className="input !py-1.5 !text-xs"
+          placeholder="Cari nama ustadz..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
       {loading && <p className="text-sm text-gray-400">Memuat jadwal kajian...</p>}
       {!loading && total === 0 && (
-        <p className="text-sm text-gray-400">Belum ada jadwal kajian pada bulan ini.</p>
+        <p className="text-sm text-gray-400">
+          {search.trim() ? "Tidak ditemukan kajian dengan nama ustadz tersebut." : "Belum ada jadwal kajian pada bulan ini."}
+        </p>
       )}
       {!loading && total > 0 && current && (
         <div className="flex-1 min-h-0 flex flex-col">
@@ -141,7 +168,7 @@ export default function KajianList() {
 
           {total > 1 && (
             <div className="flex items-center justify-center gap-1.5 mt-3 shrink-0">
-              {itemsBulanIni.map((_, i) => (
+              {itemsTampil.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => goTo(i)}

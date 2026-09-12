@@ -6,14 +6,6 @@ import { mapsOpenUrl } from "../../lib/mapsLink";
 import { platformStyle } from "../../lib/socialPlatforms";
 import { IconMapPin } from "../icons";
 
-const SITE_MAP = [
-  { to: "/", label: "Beranda" },
-  { to: "/tentang", label: "Tentang" },
-  { to: "/kalender", label: "Kalender" },
-  { to: "/keuangan", label: "Laporan Keuangan" },
-  { to: "/bacaan", label: "Bacaan" },
-];
-
 export default function Footer() {
   const [about, setAbout] = useState<AboutContent | null>(null);
   const [links, setLinks] = useState<SocialLink[]>([]);
@@ -38,7 +30,7 @@ export default function Footer() {
   return (
     <footer className="bg-white border-t border-gray-100 mt-16">
       <div className="max-w-6xl mx-auto px-4 pt-10 pb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
           <div>
             <Link to="/" className="flex items-center gap-2">
               <img
@@ -46,26 +38,13 @@ export default function Footer() {
                 className="h-10 w-auto"
                 alt="Logo Mushalla Al Amanah"
               />
-              <span className="font-serif font-bold text-primary-900 leading-tight">
+              <span className="font-semibold text-primary-900 leading-tight">
                 Mushalla
                 <br />
                 Al Amanah
               </span>
             </Link>
             <p className="text-sm text-gray-500 mt-3">GKN I Denpasar &middot; Bersama Menuju Allah</p>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 tracking-wider uppercase mb-3">Peta Situs</h4>
-            <ul className="space-y-2 text-sm">
-              {SITE_MAP.map((l) => (
-                <li key={l.to}>
-                  <Link to={l.to} className="text-gray-600 hover:text-primary-700 transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
 
           <div>

@@ -104,6 +104,7 @@ create table if not exists public.infaq_rekening (
   bank_name text not null,
   account_number text not null,
   account_holder text,
+  qris_url text, -- link gambar QRIS khusus rekening ini (opsional)
   sort_order int not null default 0,
   created_at timestamptz not null default now()
 );

@@ -18,7 +18,7 @@ export default function SocialLinks() {
   if (links.length === 0) return null;
 
   return (
-    <div className="card">
+    <div className="panel">
       <h3 className="font-serif font-bold text-lg text-primary-900 mb-3">Ikuti Media Sosial Kami</h3>
       <div className="flex flex-wrap gap-3">
         {links.map((l) => {

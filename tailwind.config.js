@@ -24,8 +24,11 @@ export default {
         },
       },
       fontFamily: {
+        // "serif" sengaja disamakan dengan "sans" (satu font, Inter, di
+        // seluruh situs) -- supaya class font-serif yang sudah dipakai di
+        // banyak judul/heading tidak perlu diganti satu-satu.
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        serif: ["\"Amiri\"", "ui-serif", "Georgia", "serif"],
+        serif: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

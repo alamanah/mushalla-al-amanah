@@ -28,6 +28,12 @@ body {
 .card {
   @apply bg-white rounded-xl shadow-sm border border-gray-100 p-5;
 }
+/* Versi "transparan" dari .card -- dipakai khusus di section beranda publik
+   supaya menyatu/blend dengan latar halaman, tanpa kotak putih/border/bayangan.
+   .card biasa tetap dipakai di dashboard & form supaya tetap jelas batasnya. */
+.panel {
+  @apply p-5;
+}
 .input {
   @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
 }
