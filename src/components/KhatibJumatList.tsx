@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { fetchHijriMap } from "../lib/prayerTimes";
 import { bulanKeyDari, bulanKeySekarang, bulanOptionsDari, labelBulan } from "../lib/bulanFilter";
+import { openYoutubeLink, resolveYoutubeLink } from "../lib/youtubeLink";
 import { KhatibJumatSchedule } from "../types";
 
 function formatTanggal(tgl: string) {
@@ -60,14 +61,20 @@ export default function KhatibJumatList() {
       <ul className="divide-y divide-gray-100 flex-1 min-h-0 overflow-y-auto">
         {itemsBulanIni.map((k) => (
           <li key={k.id} className="py-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-medium text-gray-800">{k.nama_ustadz}</p>
-              {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
+            <div
+              className="cursor-pointer -m-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={() => openYoutubeLink(resolveYoutubeLink(k))}
+              title="Buka link YouTube"
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium text-gray-800">{k.nama_ustadz}</p>
+                {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
+              </div>
+              <p className="text-sm font-semibold text-primary-700 mt-0.5">
+                {formatTanggal(k.tanggal)}
+                {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
+              </p>
             </div>
-            <p className="text-sm font-semibold text-primary-700 mt-0.5">
-              {formatTanggal(k.tanggal)}
-              {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
-            </p>
             {k.live_video_id && (
               <div className="mt-3 aspect-video rounded-lg overflow-hidden border border-gray-100">
                 <iframe

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { driveImageUrl } from "../lib/driveLink";
 import { bulanKeyDari, bulanKeySekarang, bulanOptionsDari, labelBulan } from "../lib/bulanFilter";
+import { openYoutubeLink, resolveYoutubeLink } from "../lib/youtubeLink";
+import ImageLightbox from "./ImageLightbox";
 import { KajianSchedule } from "../types";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -15,6 +17,7 @@ export default function KajianList() {
   const [items, setItems] = useState<KajianSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [bulan, setBulan] = useState(bulanKeySekarang());
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -70,10 +73,15 @@ export default function KajianList() {
                 <img
                   src={driveImageUrl(k.foto_url) ?? undefined}
                   alt=""
-                  className="w-32 h-40 sm:w-36 sm:h-44 rounded-lg object-cover border border-gray-100 shrink-0 mx-auto sm:mx-0 sm:order-1"
+                  onClick={() => setPreviewSrc(driveImageUrl(k.foto_url))}
+                  className="w-32 h-40 sm:w-36 sm:h-44 rounded-lg object-cover border border-gray-100 shrink-0 mx-auto sm:mx-0 sm:order-1 cursor-zoom-in hover:opacity-90 transition-opacity"
                 />
               )}
-              <div className="flex-1 min-w-0 sm:order-2">
+              <div
+                className="flex-1 min-w-0 sm:order-2 cursor-pointer -m-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => openYoutubeLink(resolveYoutubeLink(k))}
+                title="Buka link YouTube"
+              >
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-medium text-gray-800">{k.title}</p>
                   {k.live_video_id && <span className="badge bg-red-100 text-red-700">🔴 LIVE</span>}
@@ -102,6 +110,7 @@ export default function KajianList() {
           </li>
         ))}
       </ul>
+      {previewSrc && <ImageLightbox src={previewSrc} onClose={() => setPreviewSrc(null)} />}
     </div>
   );
 }
