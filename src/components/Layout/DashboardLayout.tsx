@@ -14,15 +14,16 @@ export default function DashboardLayout() {
     { to: "/dashboard/keuangan", label: "Keuangan", show: isAdmin || hasRole("bendahara") },
     { to: "/dashboard/inventaris", label: "Inventaris", show: isAdmin || hasRole("inventaris") },
     { to: "/dashboard/pengaturan", label: "Pengaturan Konten", show: isAdmin || hasRole("humas") },
-    { to: "/dashboard/kajian-live", label: "Live Kajian", show: isAdmin || hasRole("humas") },
+    { to: "/dashboard/live", label: "Live", show: isAdmin || hasRole("humas") },
   ];
 
   // Bottom nav (mobile) sekarang berisi shortcut AKSI (rekam transaksi/barang,
   // mulai live) sesuai role, jadi menu "Lainnya" memuat semua menu dashboard
   // selain Ringkasan (termasuk Keuangan & Inventaris versi lengkap untuk lihat
-  // data, dan Live Kajian dobel-tampil sengaja tidak masalah karena label beda).
+  // data, dan Live dobel-tampil sengaja tidak masalah karena sudah ada juga di
+  // bottom nav).
   const moreItems = items
-    .filter((i) => i.show && i.to !== "/dashboard" && i.to !== "/dashboard/kajian-live")
+    .filter((i) => i.show && i.to !== "/dashboard" && i.to !== "/dashboard/live")
     .map((i) => ({ to: i.to, label: i.label }));
 
   const handleLogout = async () => {

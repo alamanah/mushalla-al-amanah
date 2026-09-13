@@ -11,7 +11,7 @@ import {
   PamfletTemplate,
   PAMFLET_TEMPLATE_LABELS,
 } from "../../lib/pamfletGenerator";
-import { todayStr, useKajianLive } from "../../lib/useKajianLive";
+import { isPastDate, todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
 import UploadPamfletButton from "../../components/UploadPamfletButton";
 import IconButton from "../../components/IconButton";
@@ -624,6 +624,7 @@ function KajianSettings() {
         {itemsTampil.map((k) => {
           const isToday = k.specific_date === todayStr();
           const isPolling = pollingIds.has(k.id);
+          const isPast = isPastDate(k.specific_date);
           return (
             <div key={k.id} className="card">
               <div className="flex items-start gap-3">
@@ -679,12 +680,17 @@ function KajianSettings() {
                       <IconStop className="h-4 w-4" />
                     </IconButton>
                   ) : (
-                    <IconButton label="Mulai Live" variant="live" onClick={() => startLive(k)}>
+                    <IconButton
+                      label={isPast ? "Tidak bisa live -- tanggalnya sudah lewat" : "Mulai Live"}
+                      variant="live"
+                      onClick={() => startLive(k)}
+                      disabled={isPast}
+                    >
                       <IconLiveDot className="h-4 w-4" />
                     </IconButton>
                   )}
                   {isYoutubeLiveConfigured() && !k.live_video_id && (
-                    <IconButton label="Cek Status Live" onClick={() => checkLiveNow(k)} disabled={isPolling}>
+                    <IconButton label="Cek Status Live" onClick={() => checkLiveNow(k)} disabled={isPolling || isPast}>
                       <IconRefresh className={`h-4 w-4 ${isPolling ? "animate-spin" : ""}`} />
                     </IconButton>
                   )}
@@ -992,6 +998,7 @@ function KhatibJumatSettings() {
         {itemsTampil.map((k) => {
           const isToday = k.tanggal === todayStr();
           const isPolling = pollingIds.has(k.id);
+          const isPast = isPastDate(k.tanggal);
           return (
             <div key={k.id} className="card">
               <div className="flex items-start gap-3">
@@ -1047,12 +1054,17 @@ function KhatibJumatSettings() {
                       <IconStop className="h-4 w-4" />
                     </IconButton>
                   ) : (
-                    <IconButton label="Mulai Live" variant="live" onClick={() => startLive(k)}>
+                    <IconButton
+                      label={isPast ? "Tidak bisa live -- tanggalnya sudah lewat" : "Mulai Live"}
+                      variant="live"
+                      onClick={() => startLive(k)}
+                      disabled={isPast}
+                    >
                       <IconLiveDot className="h-4 w-4" />
                     </IconButton>
                   )}
                   {isYoutubeLiveConfigured() && !k.live_video_id && (
-                    <IconButton label="Cek Status Live" onClick={() => checkLiveNow(k)} disabled={isPolling}>
+                    <IconButton label="Cek Status Live" onClick={() => checkLiveNow(k)} disabled={isPolling || isPast}>
                       <IconRefresh className={`h-4 w-4 ${isPolling ? "animate-spin" : ""}`} />
                     </IconButton>
                   )}

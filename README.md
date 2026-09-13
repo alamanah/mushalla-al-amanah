@@ -115,6 +115,10 @@ ke tempat yang benar.
   - **Inventaris** (admin/inventaris): catat aset mushalla.
   - **Pengaturan Konten** (admin): jadwal kajian, info infaq, sosmed, tentang mushalla,
     override jadwal shalat.
+  - **Live** (admin/humas): halaman ringkas khusus HP untuk mulai/akhiri live YouTube --
+    cuma menampilkan kajian & khutbah Jumat yang jadwalnya HARI ITU (tanggal spesifik yang
+    jatuh hari ini, atau kajian rutin mingguan yang harinya cocok). Tombol "Mulai Live"
+    otomatis nonaktif untuk jadwal yang tanggalnya sudah lewat.
 
 ## 5. Catatan
 

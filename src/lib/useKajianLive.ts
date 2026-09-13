@@ -15,6 +15,19 @@ export function todayStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** True kalau tanggal ("YYYY-MM-DD") sudah lewat dibanding hari ini --
+ * dipakai untuk menonaktifkan tombol "Mulai Live" pada jadwal kajian
+ * bertanggal spesifik & khutbah Jumat yang tanggalnya sudah lewat (jelas
+ * tidak mungkin live untuk kegiatan yang sudah selesai). Perbandingan
+ * string biasa sudah cukup karena formatnya "YYYY-MM-DD" (urut leksikal =
+ * urut kronologis). `null` (kajian rutin mingguan tanpa tanggal spesifik,
+ * yang berulang tiap minggu jadi tidak pernah "lewat") selalu dianggap
+ * belum lewat. */
+export function isPastDate(dateStr: string | null) {
+  if (!dateStr) return false;
+  return dateStr < todayStr();
+}
+
 interface LiveItemBase {
   id: string;
   live_video_id: string | null;
@@ -23,7 +36,7 @@ interface LiveItemBase {
 
 /** Logika "Mulai Live"/deteksi otomatis Live YouTube, dipakai bersama oleh
  * Dashboard > Pengaturan Konten > Jadwal Kajian & Jadwal Khatib Jumat, dan
- * halaman mobile Live Kajian -- generik lewat parameter `table` (nama tabel
+ * halaman mobile Live -- generik lewat parameter `table` (nama tabel
  * Supabase) supaya fungsinya sama persis untuk Kajian maupun Khatib Jumat.
  * `getDate` mengambil field tanggal item (beda nama kolom antar tabel, mis.
  * "specific_date" di kajian_schedule vs "tanggal" di khatib_jumat_schedule). */

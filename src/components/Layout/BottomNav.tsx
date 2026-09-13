@@ -69,7 +69,7 @@ export default function BottomNav({ moreItems }: { moreItems: MoreItem[] }) {
   // tetap bisa lewat menu "Lainnya".
   const canBendahara = hasRole("bendahara");
   const canInventaris = hasRole("inventaris");
-  const canLiveKajian = isAdmin || hasRole("humas");
+  const canLive = isAdmin || hasRole("humas");
 
   const handleLogout = async () => {
     await signOut();
@@ -144,8 +144,8 @@ export default function BottomNav({ moreItems }: { moreItems: MoreItem[] }) {
               Keuangan
             </NavLink>
           )}
-          {canLiveKajian && (
-            <NavLink to="/dashboard/kajian-live" className={linkClass}>
+          {canLive && (
+            <NavLink to="/dashboard/live" className={linkClass}>
               <LiveIcon />
               Live
             </NavLink>
