@@ -34,17 +34,27 @@ interface LiveItemBase {
   is_active: boolean;
 }
 
+/** Link default tombol "Mulai Live" -- buka YouTube Studio (dipakai di
+ * Dashboard, diakses dari komputer/laptop). Halaman App/PWA di HP pakai
+ * link berbeda (lihat AppLive.tsx) karena Studio di browser HP kadang
+ * error "Maaf, ada yang tidak beres", sedangkan live lewat aplikasi
+ * YouTube biasa sudah terbukti lancar dipakai. */
+export const STUDIO_CREATE_LIVE_URL = "https://studio.youtube.com/live?action=create";
+
 /** Logika "Mulai Live"/deteksi otomatis Live YouTube, dipakai bersama oleh
  * Dashboard > Pengaturan Konten > Jadwal Kajian & Jadwal Khatib Jumat, dan
  * halaman mobile Live -- generik lewat parameter `table` (nama tabel
  * Supabase) supaya fungsinya sama persis untuk Kajian maupun Khatib Jumat.
  * `getDate` mengambil field tanggal item (beda nama kolom antar tabel, mis.
- * "specific_date" di kajian_schedule vs "tanggal" di khatib_jumat_schedule). */
+ * "specific_date" di kajian_schedule vs "tanggal" di khatib_jumat_schedule).
+ * `liveUrl` -- link yang dibuka tombol "Mulai Live", beda-beda tergantung
+ * konteks (lihat STUDIO_CREATE_LIVE_URL di atas). */
 export function useKajianLive<T extends LiveItemBase>(
   table: string,
   items: T[],
   reload: () => void,
-  getDate: (item: T) => string | null
+  getDate: (item: T) => string | null,
+  liveUrl: string = STUDIO_CREATE_LIVE_URL
 ) {
   const { user, profile } = useAuth();
   const [pollingIds, setPollingIds] = useState<Set<string>>(new Set());
@@ -102,7 +112,7 @@ export function useKajianLive<T extends LiveItemBase>(
   };
 
   const startLive = async (k: T) => {
-    window.open("https://studio.youtube.com/live?action=create", "_blank", "noopener");
+    window.open(liveUrl, "_blank", "noopener");
     await supabase
       .from(table)
       .update({

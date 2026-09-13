@@ -95,9 +95,10 @@ ke tempat yang benar.
 
 ## 4. Struktur Fitur
 
-- **Landing page** (`/`): widget "Bahan Bacaan" (5 artikel terbaru, auto-scroll) di
-  paling atas, jadwal shalat otomatis (API, lokasi Denpasar), jadwal kajian, info
-  infaq, link sosmed, tombol daftar/masuk.
+- **Landing page** (`/`): banner "Kajian Live Saat Ini" (cuma muncul kalau ada kajian
+  yang sedang live, klik untuk nonton di YouTube) di paling atas, lalu widget "Bahan
+  Bacaan" (5 artikel terbaru, auto-scroll), jadwal shalat otomatis (API, lokasi
+  Denpasar), jadwal kajian, info infaq, link sosmed, tombol daftar/masuk.
 - **Tentang** (`/tentang`): profil mushalla (dikelola admin).
 - **Laporan Keuangan** (`/keuangan`): transparan untuk publik, dikelola oleh bendahara.
 - **Bacaan** (`/bacaan`): artikel dari jamaah, tayang setelah disetujui admin, dengan
@@ -119,6 +120,19 @@ ke tempat yang benar.
     cuma menampilkan kajian & khutbah Jumat yang jadwalnya HARI ITU (tanggal spesifik yang
     jatuh hari ini, atau kajian rutin mingguan yang harinya cocok). Tombol "Mulai Live"
     otomatis nonaktif untuk jadwal yang tanggalnya sudah lewat.
+- **App** (`/app`, perlu login -- login tetap lewat halaman `/login` yang sama, bukan
+  halaman terpisah): versi ringkas gaya aplikasi HP, tanpa sidebar/topbar Dashboard,
+  cuma menu bawah **Live | Inventaris | Keuangan | Profil | Keluar**. 3 menu pertama
+  ikut role user (humas/admin lihat Live, inventaris lihat Inventaris, bendahara lihat
+  Keuangan -- kalau tidak pegang role apa pun, cuma Profil & Keluar yang tampil):
+  - **Live**: sama seperti Dashboard > Live (cuma kajian/khutbah hari ini), tapi tombol
+    "Mulai Live" di sini membuka aplikasi YouTube biasa (bukan YouTube Studio) karena
+    live lewat aplikasi YouTube di HP lebih stabil dibanding Studio lewat browser HP.
+  - **Inventaris**: form rekam barang + upload foto ke folder Drive "Inventaris" (sama
+    seperti Dashboard > Inventaris > Tambah Barang).
+  - **Keuangan**: form rekam transaksi manual (sama seperti Dashboard > Keuangan > Rekam
+    Transaksi).
+  - **Profil**: sama persis dengan halaman `/profil`.
 
 ## 5. Catatan
 

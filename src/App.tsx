@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import PublicLayout from "./components/Layout/PublicLayout";
 import DashboardLayout from "./components/Layout/DashboardLayout";
+import AppLayout from "./components/Layout/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Landing from "./pages/Landing";
@@ -28,6 +29,9 @@ import Settings from "./pages/dashboard/Settings";
 import RekamTransaksi from "./pages/dashboard/RekamTransaksi";
 import TambahBarang from "./pages/dashboard/TambahBarang";
 import Live from "./pages/dashboard/Live";
+
+import AppHome from "./pages/app/AppHome";
+import AppLive from "./pages/app/AppLive";
 
 export default function App() {
   return (
@@ -132,6 +136,46 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+          </Route>
+
+          {/* Halaman App/PWA -- versi ringkas gaya aplikasi HP (login tetap
+              lewat /login yang sama, ProtectedRoute yang mengarahkan ke sana
+              kalau belum login), terpisah dari /dashboard yang ditujukan
+              untuk desktop. */}
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AppHome />} />
+            <Route
+              path="live"
+              element={
+                <ProtectedRoute roles={["admin", "humas"]}>
+                  <AppLive />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="inventaris"
+              element={
+                <ProtectedRoute roles={["inventaris"]}>
+                  <TambahBarang />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="keuangan"
+              element={
+                <ProtectedRoute roles={["bendahara"]}>
+                  <RekamTransaksi />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="profil" element={<ProtectedRoute requireApproved={false}><Profile /></ProtectedRoute>} />
           </Route>
         </Routes>
       </AuthProvider>
