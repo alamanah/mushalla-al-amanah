@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -41,10 +41,8 @@ const emptyForm = {
  */
 export default function RekamTransaksi() {
   const { user, hasRole } = useAuth();
-  const navigate = useNavigate();
   const canEdit = hasRole("bendahara"); // admin read-only, sesuai kebijakan moderasi -- halaman ini khusus input
 
-  const [mode, setMode] = useState<"manual" | "saldo_awal">("manual");
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,15 +88,14 @@ export default function RekamTransaksi() {
     e.preventDefault();
     setError(null);
     setSavedInfo(null);
-    const isSaldoAwal = mode === "saldo_awal";
     setSaving(true);
     const draftLike: DraftTransaction = {
       tanggal: form.tanggal,
       uraian: "",
-      kriteria: isSaldoAwal ? "Saldo Awal" : form.kriteria,
+      kriteria: form.kriteria,
       debet: Number(form.debet) || 0,
-      kredit: isSaldoAwal ? 0 : Number(form.kredit) || 0,
-      keterangan: form.keterangan || (isSaldoAwal ? "Saldo Awal" : ""),
+      kredit: Number(form.kredit) || 0,
+      keterangan: form.keterangan,
       jenis: form.jenis,
     };
     // Transfer talangan dari UP Tunai utk Buka Puasa (lihat buildJurnalRows)
@@ -153,27 +150,6 @@ export default function RekamTransaksi() {
         </Link>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => setMode("manual")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium ${
-            mode === "manual" ? "bg-primary-700 text-white" : "bg-white border border-gray-200 text-gray-600"
-          }`}
-        >
-          Transaksi
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("saldo_awal")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium ${
-            mode === "saldo_awal" ? "bg-primary-700 text-white" : "bg-white border border-gray-200 text-gray-600"
-          }`}
-        >
-          Saldo Awal
-        </button>
-      </div>
-
       {savedInfo && (
         <div className="mb-4 rounded-lg bg-primary-50 border border-primary-200 text-primary-800 text-sm px-3 py-2">
           {savedInfo}
@@ -200,11 +176,11 @@ export default function RekamTransaksi() {
         </div>
 
         <div>
-          <label className="label">Tanggal {mode === "saldo_awal" && "(opsional)"}</label>
+          <label className="label">Tanggal</label>
           <input
             type="datetime-local"
             className="input"
-            required={mode !== "saldo_awal"}
+            required
             value={form.tanggal}
             onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
           />
@@ -222,25 +198,23 @@ export default function RekamTransaksi() {
           />
         </div>
 
-        {mode === "manual" && (
-          <div>
-            <label className="label">Kriteria</label>
-            <select
-              className="input"
-              value={form.kriteria}
-              onChange={(e) => setForm({ ...form, kriteria: e.target.value as FinancialKriteria })}
-            >
-              {FINANCIAL_KRITERIA.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div>
+          <label className="label">Kriteria</label>
+          <select
+            className="input"
+            value={form.kriteria}
+            onChange={(e) => setForm({ ...form, kriteria: e.target.value as FinancialKriteria })}
+          >
+            {FINANCIAL_KRITERIA.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div>
-          <label className="label">{mode === "saldo_awal" ? "Nominal Saldo Awal" : "Debet (masuk)"}</label>
+          <label className="label">Debet (masuk)</label>
           <input
             type="number"
             inputMode="numeric"
@@ -251,19 +225,17 @@ export default function RekamTransaksi() {
           />
         </div>
 
-        {mode === "manual" && (
-          <div>
-            <label className="label">Kredit (keluar)</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              className="input"
-              value={form.kredit}
-              onChange={(e) => setForm({ ...form, kredit: e.target.value })}
-            />
-          </div>
-        )}
+        <div>
+          <label className="label">Kredit (keluar)</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            className="input"
+            value={form.kredit}
+            onChange={(e) => setForm({ ...form, kredit: e.target.value })}
+          />
+        </div>
 
         <div>
           <label className="label">Keterangan</label>
@@ -271,17 +243,13 @@ export default function RekamTransaksi() {
             className="input"
             value={form.keterangan}
             onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
-            placeholder={mode === "saldo_awal" ? "Saldo Awal" : ""}
             list="keterangan-suggestions"
           />
         </div>
 
-        <div className="flex gap-2 pt-1">
-          <button className="btn-primary flex-1" disabled={saving}>
+        <div className="pt-1">
+          <button className="btn-primary w-full" disabled={saving}>
             {saving ? "Menyimpan..." : "Simpan"}
-          </button>
-          <button type="button" className="btn-secondary" onClick={() => navigate("/dashboard")}>
-            Selesai
           </button>
         </div>
       </form>
