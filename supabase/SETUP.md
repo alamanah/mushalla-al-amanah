@@ -283,6 +283,49 @@ https://script.google.com/, edit kodenya, lalu **Deploy → Manage deployments �
 
 ---
 
+## 7. (Opsional) Pamflet dibuat AI (Gemini)
+
+Tombol **"✨ Buat dengan AI"** di form Pamflet (Dashboard → Pengaturan Konten → Jadwal
+Kajian) -- BEDA dari **"🎨 Buat Otomatis"** di bagian 6 di atas. Yang itu menggambar
+pamflet lewat kode (template tetap, cuma isinya yang berubah -- teksnya dijamin 100%
+akurat). Yang ini seluruh gambarnya, **termasuk semua tulisan di dalamnya** (nomor
+rekening, nomor WhatsApp, tanggal, jam), digambar oleh **AI (Gemini, Google)** --
+hasilnya lebih variatif/artistik, tapi AI kadang bisa salah menulis angka. **Karena itu
+hasilnya SELALU harus dicek dulu lewat pratinjau** (ada peringatan otomatis di layar)
+sebelum diupload ke Drive -- tidak langsung terpasang begitu saja.
+
+Fitur ini **butuh biaya kecil per gambar** (bukan gratis) -- kira-kira **Rp500-an per
+pamflet** (bisa berubah, cek harga terbaru di https://ai.google.dev/gemini-api/docs/pricing
+sebelum aktifkan), dan **butuh langkah 6 di atas sudah selesai duluan** (fitur ini numpang
+lewat Apps Script yang sama, tidak perlu bikin Apps Script baru).
+
+1. Buka https://aistudio.google.com/apikey (pakai akun Google yang sama dengan yang
+   men-deploy Apps Script di langkah 6, atau akun lain yang mengelola billing-nya) →
+   **Create API key** → ikuti langkah untuk menghubungkan ke sebuah **Google Cloud
+   project dengan billing aktif** (perlu kartu debit/kredit terdaftar di Google Cloud,
+   tapi kamu cuma dikenakan biaya sesuai pemakaian, bukan biaya bulanan tetap). Salin API
+   key yang muncul.
+2. Buka lagi project Apps Script dari langkah 6 di https://script.google.com/ → klik
+   ikon **gerigi (Project Settings)** di sisi kiri → scroll ke bagian **Script Properties**
+   → **Add script property**:
+   - **Property**: `GEMINI_API_KEY`
+   - **Value**: (API key yang disalin tadi)
+   
+   Klik **Save script properties**. **Penting:** taruh API key di sini (Script
+   Properties), **JANGAN** ditaruh di kode `Code.gs` atau di GitHub Actions secrets --
+   Script Properties tidak pernah ikut ter-publish ke GitHub Pages/terlihat pengunjung
+   web, beda dengan kode yang sifatnya publik.
+3. Tidak perlu Deploy ulang atau push apa pun -- begitu Script Property tersimpan,
+   tombol "✨ Buat dengan AI" langsung bisa dipakai (tombolnya sudah otomatis muncul
+   sejak langkah 6 selesai, cuma akan gagal dengan pesan jelas kalau langkah di atas
+   belum dilakukan).
+
+Kalau mau ganti model AI-nya (misalnya ke kualitas lebih tinggi/lebih mahal), edit baris
+`GEMINI_MODEL` di paling atas `Code.gs`, lalu **Deploy → Manage deployments → ikon
+pensil → Version: New version → Deploy** seperti biasa.
+
+---
+
 ## Ringkasan Role & Hak Akses
 
 | Role         | Hak Akses                                                             |

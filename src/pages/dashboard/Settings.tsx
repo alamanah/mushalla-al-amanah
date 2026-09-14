@@ -11,6 +11,7 @@ import {
   PamfletTemplate,
   PAMFLET_TEMPLATE_LABELS,
 } from "../../lib/pamfletGenerator";
+import { generatePamfletImageWithAI, isPamfletAiConfigured } from "../../lib/pamfletAiGenerate";
 import { isPastDate, todayStr, useKajianLive } from "../../lib/useKajianLive";
 import { driveImageUrl } from "../../lib/driveLink";
 import UploadPamfletButton from "../../components/UploadPamfletButton";
@@ -151,6 +152,10 @@ function KajianSettings() {
     blob: Blob;
     template: PamfletTemplate;
     paletteIndex: number;
+    /** "template" = digambar kode (canvas, teks dijamin akurat), "ai" =
+     * digambar Gemini (semua teks termasuk angka bisa saja salah, WAJIB
+     * dicek dulu sebelum dipakai -- lihat warning di modal pratinjau). */
+    source: "template" | "ai";
   } | null>(null);
   const [pamfletGenerating, setPamfletGenerating] = useState(false);
   const [pamfletApplying, setPamfletApplying] = useState(false);
@@ -194,7 +199,10 @@ function KajianSettings() {
   // canvas (generatePamfletImage), tampilkan pratinjau dulu sebelum
   // diunggah ke Drive -- supaya admin bisa "Buat Ulang" (ganti tema warna)
   // kalau hasilnya kurang pas, tanpa langsung ke-upload. ----
-  const buildPamfletBlob = async (template: PamfletTemplate, paletteIndex: number) => {
+  // Data isian kajian (judul, jadwal, rekening, kontak dll) dipakai BAIK
+  // oleh generator template (canvas) MAUPUN generator AI (Gemini) -- disusun
+  // di satu tempat supaya keduanya selalu konsisten & tidak dobel kode.
+  const buildPamfletData = async (): Promise<PamfletData> => {
     if (!form.title.trim() || !form.tanggal || !form.time_text.trim()) {
       throw new Error("Isi dulu Judul Kajian, Tanggal, dan Jam sebelum membuat pamflet otomatis.");
     }
@@ -216,7 +224,7 @@ function KajianSettings() {
       .filter((s) => ["facebook", "youtube", "instagram", "tiktok"].includes(s.platform.toLowerCase()))
       .map((s) => s.platform.charAt(0).toUpperCase() + s.platform.slice(1));
 
-    const data: PamfletData = {
+    return {
       title: form.title.trim(),
       ustadz: ustadzValue || null,
       description: form.description.trim() || null,
@@ -233,6 +241,10 @@ function KajianSettings() {
       livePlatforms,
       orgName: "Mushalla Al Amanah GKN I Denpasar",
     };
+  };
+
+  const buildPamfletBlob = async (template: PamfletTemplate, paletteIndex: number) => {
+    const data = await buildPamfletData();
 
     // Latar kustom (kalau diunggah admin sendiri) -- dimuat sebagai gambar
     // lalu dilepas lagi dari memori begitu selesai dipakai.
@@ -261,7 +273,7 @@ function KajianSettings() {
       const blob = await buildPamfletBlob(template, paletteIndex);
       setPamfletPreview((prev) => {
         if (prev) URL.revokeObjectURL(prev.url);
-        return { url: URL.createObjectURL(blob), blob, template, paletteIndex };
+        return { url: URL.createObjectURL(blob), blob, template, paletteIndex, source: "template" };
       });
     } catch (err) {
       setPamfletError(err instanceof Error ? err.message : "Gagal membuat pamflet otomatis.");
@@ -270,8 +282,34 @@ function KajianSettings() {
     }
   };
 
+  // "Buat dengan AI" (opsional, lihat SETUP.md bagian 7) -- seluruh gambar
+  // TERMASUK semua tulisannya digambar oleh Gemini, bukan oleh kode. Karena
+  // itu HARUS selalu lewat pratinjau (tidak langsung upload) supaya pengurus
+  // sempat mengecek semua angka (rekening, WA, tanggal) sebelum dipakai --
+  // lihat warning di modal pratinjau.
+  const generatePamfletAi = async (template: PamfletTemplate) => {
+    setPamfletError(null);
+    setPamfletGenerating(true);
+    try {
+      const data = await buildPamfletData();
+      const blob = await generatePamfletImageWithAI(data, template === "ornate" ? "ornate" : "kajian-rutin");
+      setPamfletPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev.url);
+        return { url: URL.createObjectURL(blob), blob, template, paletteIndex: 0, source: "ai" };
+      });
+    } catch (err) {
+      setPamfletError(err instanceof Error ? err.message : "Gagal membuat pamflet dengan AI.");
+    } finally {
+      setPamfletGenerating(false);
+    }
+  };
+
   const regeneratePamflet = () => {
     const template = pamfletPreview?.template ?? pamfletTemplate;
+    if (pamfletPreview?.source === "ai") {
+      generatePamfletAi(template);
+      return;
+    }
     const next = ((pamfletPreview?.paletteIndex ?? -1) + 1) % paletteCount(template);
     generatePamflet(template, next);
   };
@@ -529,6 +567,17 @@ function KajianSettings() {
                 {pamfletGenerating ? "Membuat..." : "🎨 Buat Otomatis"}
               </button>
             )}
+            {isPamfletAiConfigured() && (
+              <button
+                type="button"
+                className="btn-secondary text-xs !py-1.5"
+                disabled={pamfletGenerating}
+                title="Seluruh gambar (termasuk tulisan) dibuat AI -- selalu cek dulu sebelum dipakai"
+                onClick={() => generatePamfletAi(pamfletTemplate)}
+              >
+                {pamfletGenerating ? "Membuat..." : "✨ Buat dengan AI"}
+              </button>
+            )}
             {isPamfletUploadConfigured() && <span className="text-[11px] text-gray-400">atau tempel link manual:</span>}
           </div>
           {isPamfletUploadConfigured() && pamfletTemplate === "kajian-rutin" && (
@@ -767,11 +816,21 @@ function KajianSettings() {
       {pamfletPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="card max-w-lg w-full">
-            <h3 className="font-semibold text-gray-800 mb-1">Pratinjau Pamflet Otomatis</h3>
-            <p className="text-xs text-gray-500 mb-3">
-              Tema warna: {paletteName(pamfletPreview.template, pamfletPreview.paletteIndex)}. Kalau kurang pas, klik "Buat Ulang" untuk
-              coba tema warna lain -- belum ke-upload ke Drive sebelum kamu klik "Pakai Pamflet Ini".
-            </p>
+            <h3 className="font-semibold text-gray-800 mb-1">
+              Pratinjau Pamflet {pamfletPreview.source === "ai" ? "AI" : "Otomatis"}
+            </h3>
+            {pamfletPreview.source === "ai" ? (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                ⚠️ Seluruh tulisan di gambar ini dibuat AI, termasuk nomor rekening, nomor WhatsApp, tanggal & jam --
+                <strong> cek dulu satu per satu, pastikan tidak ada yang salah/kurang</strong> sebelum klik "Pakai Pamflet Ini". Kalau ada
+                yang salah, klik "Buat Ulang" untuk coba lagi.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 mb-3">
+                Tema warna: {paletteName(pamfletPreview.template, pamfletPreview.paletteIndex)}. Kalau kurang pas, klik "Buat Ulang" untuk
+                coba tema warna lain -- belum ke-upload ke Drive sebelum kamu klik "Pakai Pamflet Ini".
+              </p>
+            )}
             <img src={pamfletPreview.url} alt="Pratinjau pamflet" className="w-full rounded-lg border border-gray-100 mb-3" />
             {pamfletError && <p className="text-xs text-red-600 mb-2">{pamfletError}</p>}
             <div className="flex flex-wrap gap-2">
