@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { AppRole, Profile, ROLE_LABEL, Ustadz } from "../../types";
+import { DAFTAR_BANK } from "../../lib/bankList";
 
 // Role yang bisa ditambahkan lewat halaman Referensi (tidak termasuk admin --
 // pemberian akses admin tetap lewat menu Verifikasi User agar tidak longgar).
@@ -191,6 +192,12 @@ function TabUstadz() {
 
   return (
     <div>
+      <datalist id="bank-suggestions">
+        {DAFTAR_BANK.map((b) => (
+          <option key={b} value={b} />
+        ))}
+      </datalist>
+
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">Daftar ustadz/penceramah untuk rujukan internal pengurus.</p>
         <button className="btn-primary !py-1.5 !px-3 text-sm" onClick={startAdd}>
@@ -236,6 +243,7 @@ function TabUstadz() {
               value={form.bank_name}
               onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
               placeholder="mis. BRI, BSI, dst."
+              list="bank-suggestions"
             />
           </div>
           <div>
