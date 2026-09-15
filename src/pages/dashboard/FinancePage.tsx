@@ -395,6 +395,7 @@ export default function FinancePage() {
       kredit: isSaldoAwal ? 0 : Number(manualForm.kredit) || 0,
       keterangan: manualForm.keterangan || (isSaldoAwal ? "Saldo Awal" : ""),
       jenis: manualForm.jenis,
+      groupId: crypto.randomUUID(),
     };
     const jurnalRows = buildJurnalRows(draftLike, {
       tanggalIso: datetimeLocalToWitaIso(manualForm.tanggal),

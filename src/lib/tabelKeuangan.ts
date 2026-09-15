@@ -40,6 +40,10 @@ export interface JurnalRowInsert {
   keterangan: string | null;
   jenis: FinancialJenis;
   created_by: string | null;
+  /** Lihat komentar `groupId` di DraftTransaction (types/index.ts) -- semua
+   * baris jurnal (1-3 baris, bisa beda tabel) yang berasal dari 1 draft yang
+   * sama otomatis mewarisi nilai ini lewat `base` di bawah. */
+  jurnal_group_id: string;
 }
 
 export interface JurnalRow {
@@ -72,6 +76,7 @@ export function buildJurnalRows(draft: DraftTransaction, ctx: JurnalContext): Ju
     uraian: draft.uraian || null,
     keterangan: draft.keterangan || null,
     created_by: ctx.createdBy,
+    jurnal_group_id: draft.groupId,
   };
   const asli: JurnalRowInsert = {
     ...base,

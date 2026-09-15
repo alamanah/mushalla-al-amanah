@@ -186,6 +186,17 @@ export interface DraftTransaction {
   kredit: number;
   keterangan: string;
   jenis: FinancialJenis; // default ikut tombol upload yang dipakai (BRI/BSI), bisa diubah manual
+  /** ID pengelompokan (uuid) -- SEMUA baris jurnal (di tabel manapun) yang
+   * dihasilkan dari 1 transaksi "asli" yang sama (lihat buildJurnalRows di
+   * tabelKeuangan.ts) memakai groupId yang sama, disimpan sebagai kolom
+   * `jurnal_group_id` di database. Ini yang membuat hapus 1 baris otomatis
+   * ikut menghapus baris pasangannya di tabel lain (lewat trigger DB, lihat
+   * migration_020) -- supaya data across tabel_bank/tabel_up_bank/
+   * tabel_up_tunai/dst tidak pernah tidak-sinkron. Draft "kontra" yang
+   * dibuat lewat FinancePage.updateDraft (pilih Jenis "UP Tunai" pada baris
+   * upload) SENGAJA mewarisi groupId dari baris asalnya (lewat spread
+   * `...src`) supaya ikut satu kelompok yang sama, bukan dibuatkan baru. */
+  groupId: string;
 }
 
 export interface InventoryCategory {

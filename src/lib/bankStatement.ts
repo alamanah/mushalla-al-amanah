@@ -132,6 +132,7 @@ export async function parseBriStatement(file: File): Promise<DraftTransaction[]>
       kredit,
       keterangan: uraian,
       jenis: "BRI",
+      groupId: crypto.randomUUID(),
     });
   }
   return out;
@@ -169,6 +170,7 @@ export async function parseBsiStatement(file: File): Promise<DraftTransaction[]>
       kredit,
       keterangan: uraian,
       jenis: "BSI",
+      groupId: crypto.randomUUID(),
     });
   }
   return out;

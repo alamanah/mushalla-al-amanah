@@ -97,6 +97,7 @@ export default function RekamTransaksi() {
       kredit: Number(form.kredit) || 0,
       keterangan: form.keterangan,
       jenis: form.jenis,
+      groupId: crypto.randomUUID(),
     };
     // Transfer talangan dari UP Tunai utk Buka Puasa (lihat buildJurnalRows)
     // butuh tahu saldo tabel_infaq_buka_puasa saat ini -- halaman ini tidak
