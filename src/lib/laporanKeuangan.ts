@@ -110,7 +110,16 @@ export function buildLaporanKeuangan(
       return { kriteria: k, jumlah, keterangan };
     });
 
-  const penerimaan = buildRows(KRITERIA_PENERIMAAN, "debet");
+  // "Admin" di sisi Penerimaan sengaja DIKECUALIKAN kalau nilainya 0 --
+  // beda dari kriteria lain di daftar ini (Transfer/Setor Tunai Jumat/QRIS/
+  // Lainnya) yang tetap ditampilkan sebagai baris "-" walau kosong (meniru
+  // format laporan mingguan lama di Google Sheets). Biaya admin bank hampir
+  // selalu berupa POTONGAN (Pengeluaran), jadi baris "Admin: -" di
+  // Penerimaan biasanya cuma bikin bingung tanpa memberi informasi apa pun
+  // -- baris ini baru muncul di Penerimaan kalau memang ada transaksi
+  // dengan Kriteria "Admin" yang debet-nya lebih dari 0. Sisi Pengeluaran
+  // tidak diubah -- "Admin" di sana tetap selalu tampil seperti biasa.
+  const penerimaan = buildRows(KRITERIA_PENERIMAAN, "debet").filter((row) => row.kriteria !== "Admin" || row.jumlah > 0);
   const pengeluaran = buildRows(KRITERIA_PENGELUARAN, "kredit");
   const totalPenerimaan = penerimaan.reduce((a, b) => a + b.jumlah, 0);
   const totalPengeluaran = pengeluaran.reduce((a, b) => a + b.jumlah, 0);
