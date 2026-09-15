@@ -13,10 +13,8 @@ export default function Landing() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <LiveNowBanner />
-      <BacaanList />
-      <PrayerTimesCard />
 
-      <div className="grid md:grid-cols-2 md:divide-x md:divide-gray-200 border-t border-gray-100 mt-8 pt-8">
+      <div className="grid md:grid-cols-2 md:divide-x md:divide-gray-200">
         <div className="md:pr-8">
           <KajianList />
         </div>
@@ -24,6 +22,11 @@ export default function Landing() {
           <KhatibJumatList />
         </div>
       </div>
+
+      <div className="border-t border-gray-100 mt-8 pt-8">
+        <PrayerTimesCard />
+      </div>
+      <BacaanList />
 
       <div className="border-t border-gray-100 mt-8 pt-8">
         <InfaqCard />
