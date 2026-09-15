@@ -100,26 +100,28 @@ export function buildLaporanKeuangan(
   const rowsPeriode = runningRows.filter((r) => r.periode === periode && r.kriteria !== "Saldo Awal");
   const saldoAwal = idxFirst > 0 ? runningRows[idxFirst - 1].saldo : 0;
 
+  // "Admin" dipakai di KEDUA sisi -- Penerimaan (bunga/bagi hasil bank yang
+  // masuk) MAUPUN Pengeluaran (potongan biaya admin bank) -- jadi barisnya
+  // sengaja TETAP selalu ditampilkan di kedua tabel seperti kriteria
+  // lainnya, walau nilainya 0.
+  //
+  // Yang perlu dijaga: `matches` di bawah ini mengambil SEMUA transaksi
+  // dengan Kriteria yang sama tanpa peduli arahnya (debet/kredit) -- jadi
+  // kalau ada transaksi "Admin" yang sebenarnya kredit (potongan biaya),
+  // keterangannya JANGAN ikut nongol di baris Penerimaan (field "debet")
+  // walau jumlahnya di situ tetap 0 -- begitu juga sebaliknya. Makanya
+  // keterangan cuma diambil dari transaksi yang benar-benar mengisi field
+  // yang sedang dihitung (nilainya > 0 di field itu).
   const buildRows = (list: FinancialKriteria[], field: "debet" | "kredit"): LaporanBarisKriteria[] =>
     list.map((k) => {
       const matches = rowsPeriode.filter((r) => r.kriteria === k);
       const jumlah = matches.reduce((sum, r) => sum + Number(r[field]), 0);
-      const keterangan = Array.from(new Set(matches.map((r) => r.keterangan).filter((v): v is string => !!v))).join(
-        ", "
-      );
+      const relevan = matches.filter((r) => Number(r[field]) > 0);
+      const keterangan = Array.from(new Set(relevan.map((r) => r.keterangan).filter((v): v is string => !!v))).join(", ");
       return { kriteria: k, jumlah, keterangan };
     });
 
-  // "Admin" di sisi Penerimaan sengaja DIKECUALIKAN kalau nilainya 0 --
-  // beda dari kriteria lain di daftar ini (Transfer/Setor Tunai Jumat/QRIS/
-  // Lainnya) yang tetap ditampilkan sebagai baris "-" walau kosong (meniru
-  // format laporan mingguan lama di Google Sheets). Biaya admin bank hampir
-  // selalu berupa POTONGAN (Pengeluaran), jadi baris "Admin: -" di
-  // Penerimaan biasanya cuma bikin bingung tanpa memberi informasi apa pun
-  // -- baris ini baru muncul di Penerimaan kalau memang ada transaksi
-  // dengan Kriteria "Admin" yang debet-nya lebih dari 0. Sisi Pengeluaran
-  // tidak diubah -- "Admin" di sana tetap selalu tampil seperti biasa.
-  const penerimaan = buildRows(KRITERIA_PENERIMAAN, "debet").filter((row) => row.kriteria !== "Admin" || row.jumlah > 0);
+  const penerimaan = buildRows(KRITERIA_PENERIMAAN, "debet");
   const pengeluaran = buildRows(KRITERIA_PENGELUARAN, "kredit");
   const totalPenerimaan = penerimaan.reduce((a, b) => a + b.jumlah, 0);
   const totalPengeluaran = pengeluaran.reduce((a, b) => a + b.jumlah, 0);
