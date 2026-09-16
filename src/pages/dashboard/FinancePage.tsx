@@ -25,6 +25,7 @@ import {
   FinancialJenis,
   FinancialKriteria,
   FinancialTransaction,
+  LaporanPublikasi,
 } from "../../types";
 
 function EyeIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -127,6 +128,10 @@ export default function FinancePage() {
   const [pageSize, setPageSize] = useState<number>(25);
   const [page, setPage] = useState(1);
 
+  // -- publikasi Laporan Keuangan ke halaman publik --
+  const [publishedPeriodes, setPublishedPeriodes] = useState<Set<string>>(new Set());
+  const [publishing, setPublishing] = useState(false);
+
   const load = () => {
     setLoading(true);
     Promise.all([
@@ -137,7 +142,8 @@ export default function FinancePage() {
       supabase.from(TABEL_DONASI).select("*"),
       supabase.from(TABEL_RAMADHAN).select("*"),
       supabase.from(TABEL_QURBAN).select("*"),
-    ]).then(([bank, upBank, upTunai, bukaPuasa, donasi, ramadhan, qurban]) => {
+      supabase.from("laporan_publikasi").select("periode"),
+    ]).then(([bank, upBank, upTunai, bukaPuasa, donasi, ramadhan, qurban, publikasi]) => {
       setBankRows((bank.data as FinancialTransaction[]) ?? []);
       setUpBankRowsRaw((upBank.data as FinancialTransaction[]) ?? []);
       setUpTunaiRowsRaw((upTunai.data as FinancialTransaction[]) ?? []);
@@ -145,7 +151,33 @@ export default function FinancePage() {
       setDonasiRowsRaw((donasi.data as FinancialTransaction[]) ?? []);
       setRamadhanRowsRaw((ramadhan.data as FinancialTransaction[]) ?? []);
       setQurbanRowsRaw((qurban.data as FinancialTransaction[]) ?? []);
+      setPublishedPeriodes(
+        new Set(((publikasi.data as Pick<LaporanPublikasi, "periode">[]) ?? []).map((p) => p.periode))
+      );
       setLoading(false);
+    });
+  };
+
+  // Publikasikan/batalkan publikasi 1 periode ke halaman publik (menu
+  // Keuangan) -- lihat migration_022_laporan_publikasi.sql. RLS di database
+  // memastikan cuma bendahara yang bisa berhasil menulis ke tabel ini, tapi
+  // tombolnya sendiri juga sudah disembunyikan utk role lain lewat `canEdit`
+  // di JSX (lihat pemanggilan LaporanKeuanganTab di bawah).
+  const togglePublish = async (periode: string, publish: boolean) => {
+    setPublishing(true);
+    const { error } = publish
+      ? await supabase.from("laporan_publikasi").upsert({ periode, published_by: user?.id ?? null })
+      : await supabase.from("laporan_publikasi").delete().eq("periode", periode);
+    setPublishing(false);
+    if (error) {
+      alert("Gagal memproses publikasi: " + error.message);
+      return;
+    }
+    setPublishedPeriodes((prev) => {
+      const next = new Set(prev);
+      if (publish) next.add(periode);
+      else next.delete(periode);
+      return next;
     });
   };
 
@@ -769,7 +801,13 @@ export default function FinancePage() {
       </div>
 
       {isLaporan ? (
-        <LaporanKeuanganTab items={laporanItems} bukaPuasaItems={bukaPuasaRowsRaw} />
+        <LaporanKeuanganTab
+          items={laporanItems}
+          bukaPuasaItems={bukaPuasaRowsRaw}
+          publishedPeriodes={publishedPeriodes}
+          onTogglePublish={canEdit ? togglePublish : undefined}
+          publishing={publishing}
+        />
       ) : (
         <>
       <div className="card mb-3 flex items-center justify-between">

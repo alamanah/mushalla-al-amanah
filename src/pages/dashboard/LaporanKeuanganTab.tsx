@@ -13,14 +13,55 @@ interface Props {
    * bagian bawah laporan. Default ikut `items` kalau tidak diisi. */
   bukaPuasaItems?: FinancialTransaction[];
   /** false = tampilan ringkas untuk halaman publik: tanpa pilih periode
-   * (otomatis pakai periode terbaru) dan tanpa tombol Unduh PDF. Default
-   * true (dipakai di Dashboard > Keuangan > tab Laporan). */
+   * (otomatis pakai periode terbaru YANG SUDAH DIPUBLIKASIKAN, kalau belum
+   * ada baliknya periode sebelumnya -- lihat komentar `periodeOtomatisPublik`
+   * di bawah) dan tanpa tombol Unduh PDF/Publikasikan. Default true (dipakai
+   * di Dashboard > Keuangan > tab Laporan). */
   showControls?: boolean;
+  /** Kumpulan nama periode yang sudah dipublikasikan bendahara ke halaman
+   * publik (lihat migration_022_laporan_publikasi.sql). Dipakai baik di
+   * halaman publik (utk menentukan periode mana yg otomatis ditampilkan)
+   * maupun di dashboard (utk menandai status tombol Publikasikan). */
+  publishedPeriodes?: Set<string>;
+  /** Diisi HANYA oleh dashboard (dan hanya utk bendahara) -- menampilkan
+   * tombol Publikasikan/Batalkan Publikasi untuk periode yang sedang dilihat.
+   * Kosongkan (undefined) supaya tombol tidak muncul (halaman publik / admin
+   * read-only). */
+  onTogglePublish?: (periode: string, publish: boolean) => void;
+  /** true selagi permintaan publikasikan/batalkan sedang diproses -- dipakai
+   * menonaktifkan tombol supaya tidak diklik dobel. */
+  publishing?: boolean;
 }
 
-export default function LaporanKeuanganTab({ items, bukaPuasaItems, showControls = true }: Props) {
+export default function LaporanKeuanganTab({
+  items,
+  bukaPuasaItems,
+  showControls = true,
+  publishedPeriodes,
+  onTogglePublish,
+  publishing = false,
+}: Props) {
   const periodeOptions = useMemo(() => listPeriodeOptions(items), [items]);
-  const [periode, setPeriode] = useState<string>(periodeOptions[0] ?? "");
+
+  // Periode yang otomatis ditampilkan di halaman PUBLIK: periode TERBARU
+  // kalau sudah dipublikasikan bendahara, kalau belum maka periode
+  // SEBELUMNYA (yang datanya sudah pasti final, tidak berubah lagi).
+  const periodeOtomatisPublik = useMemo(() => {
+    if (periodeOptions.length === 0) return "";
+    const [terbaru, sebelumnya] = periodeOptions;
+    if (terbaru && publishedPeriodes?.has(terbaru)) return terbaru;
+    return sebelumnya ?? "";
+  }, [periodeOptions, publishedPeriodes]);
+
+  // Periode pilihan manual, khusus dashboard (showControls=true) -- null
+  // berarti "belum diubah manual", jadi otomatis ikut periode terbaru begitu
+  // data termuat (periodeOptions awalnya kosong sebelum load() selesai).
+  // Begitu bendahara memilih lewat dropdown, nilainya jadi tetap dipakai.
+  const [periodeManualOverride, setPeriodeManualOverride] = useState<string | null>(null);
+  const periodeManual = periodeManualOverride ?? periodeOptions[0] ?? "";
+
+  const periode = showControls ? periodeManual : periodeOtomatisPublik;
+  const isPeriodePublished = periode ? (publishedPeriodes?.has(periode) ?? false) : false;
 
   const laporan = useMemo(() => {
     if (!periode) return null;
@@ -42,25 +83,70 @@ export default function LaporanKeuanganTab({ items, bukaPuasaItems, showControls
     return <p className="text-sm text-gray-400">Belum ada data transaksi untuk dibuatkan laporan.</p>;
   }
 
+  // Halaman publik & belum ada apa-apa yang bisa ditampilkan (periode
+  // terbaru belum dipublikasikan bendahara, dan belum ada periode sebelumnya
+  // sama sekali -- mis. situs baru dipasang, baru "Pekan 1" yang ada datanya).
+  if (!showControls && !periode) {
+    return (
+      <p className="text-sm text-gray-400 text-center">
+        Laporan periode berjalan belum dipublikasikan pengurus. Silakan cek kembali nanti.
+      </p>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       {showControls && (
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-500">Pilih Periode:</label>
-            <select className="input max-w-[200px]" value={periode} onChange={(e) => setPeriode(e.target.value)}>
+            <select
+              className="input max-w-[200px]"
+              value={periode}
+              onChange={(e) => setPeriodeManualOverride(e.target.value)}
+            >
               {periodeOptions.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>
               ))}
             </select>
+            {onTogglePublish &&
+              (isPeriodePublished ? (
+                <span className="badge bg-primary-100 text-primary-700 border border-primary-200">
+                  ✅ Tampil di publik
+                </span>
+              ) : (
+                <span className="badge bg-yellow-100 text-yellow-700 border border-yellow-200">
+                  Belum dipublikasikan
+                </span>
+              ))}
           </div>
-          {laporan && (
-            <button className="btn-secondary text-sm" onClick={handleDownloadPdf}>
-              🖨️ Unduh PDF
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onTogglePublish && laporan && (
+              <button
+                className={isPeriodePublished ? "btn-secondary text-sm" : "btn-primary text-sm"}
+                disabled={publishing}
+                onClick={() => onTogglePublish(periode, !isPeriodePublished)}
+                title={
+                  isPeriodePublished
+                    ? "Sembunyikan lagi laporan periode ini dari halaman publik"
+                    : "Tampilkan laporan periode ini di halaman publik (menu Keuangan)"
+                }
+              >
+                {publishing
+                  ? "Memproses..."
+                  : isPeriodePublished
+                  ? "Batalkan Publikasi"
+                  : "📢 Publikasikan ke Publik"}
+              </button>
+            )}
+            {laporan && (
+              <button className="btn-secondary text-sm" onClick={handleDownloadPdf}>
+                🖨️ Unduh PDF
+              </button>
+            )}
+          </div>
         </div>
       )}
 

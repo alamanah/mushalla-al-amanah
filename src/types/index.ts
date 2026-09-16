@@ -177,6 +177,15 @@ export interface FinancialTransaction {
   created_at: string;
 }
 
+/** Catatan periode Laporan Keuangan yang sudah dipublikasikan bendahara ke
+ * halaman publik (lihat migration_022_laporan_publikasi.sql). Tanpa baris di
+ * sini utk suatu periode = periode itu belum tampil ke publik. */
+export interface LaporanPublikasi {
+  periode: string;
+  published_at: string;
+  published_by: string | null;
+}
+
 /** Baris transaksi hasil parsing file, sebelum disimpan ke database. */
 export interface DraftTransaction {
   tanggal: string; // datetime-local string "YYYY-MM-DDTHH:mm"
