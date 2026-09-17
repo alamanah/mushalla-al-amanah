@@ -28,3 +28,21 @@ export const FALLBACK_PLATFORM_STYLE = { bg: "bg-gray-100 text-gray-700", icon: 
 export function platformStyle(platform: string) {
   return PLATFORM_STYLE[platform.toLowerCase()] ?? FALLBACK_PLATFORM_STYLE;
 }
+
+/** Ambil nomor dari link WhatsApp (wa.me/api.whatsapp.com dengan query
+ * "phone", format internasional "62..." -- lihat cara link ini dibuat di
+ * Settings.tsx) lalu ubah ke format lokal "08..." supaya lebih gampang
+ * dibaca/dihafal jamaah, dipakai gantinya link mentah (lihat
+ * SosmedPanelTv.tsx). Balikin null kalau link bukan format itu, supaya
+ * pemanggilnya bisa fallback tampilkan url apa adanya. */
+export function formatNomorWa(url: string): string | null {
+  try {
+    const phone = new URL(url).searchParams.get("phone");
+    if (!phone) return null;
+    const digits = phone.replace(/\D/g, "");
+    if (!digits) return null;
+    return digits.startsWith("62") ? `0${digits.slice(2)}` : digits;
+  } catch {
+    return null;
+  }
+}

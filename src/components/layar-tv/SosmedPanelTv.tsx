@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { platformStyle } from "../../lib/socialPlatforms";
+import { formatNomorWa, platformStyle } from "../../lib/socialPlatforms";
 import { SocialLink } from "../../types";
 
 /**
@@ -34,6 +34,7 @@ export default function SosmedPanelTv() {
         {links.map((l) => {
           const style = platformStyle(l.platform);
           const label = l.display_name?.trim() || l.platform;
+          const nomorWa = l.platform.toLowerCase() === "whatsapp" ? formatNomorWa(l.url) : null;
           return (
             <div key={l.id} className="flex items-center gap-5 rounded-2xl border border-gray-100 bg-gray-50 px-6 py-5">
               <span className={`flex items-center justify-center h-14 w-14 rounded-full shrink-0 ${style.bg}`}>
@@ -43,7 +44,7 @@ export default function SosmedPanelTv() {
                 <p className={`font-semibold text-gray-800 text-xl ${l.display_name?.trim() ? "" : "capitalize"}`}>
                   {label}
                 </p>
-                <p className="text-base text-gray-500 truncate mt-0.5">{l.url}</p>
+                <p className="text-base text-gray-500 truncate mt-0.5">{nomorWa ?? l.url}</p>
               </div>
             </div>
           );

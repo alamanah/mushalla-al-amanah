@@ -119,7 +119,7 @@ export default function LaporanKeuanganTab({
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-6">
               <div className="rounded-2xl bg-primary-50 border border-primary-100 p-5">
                 <p className="font-semibold text-primary-800 text-lg mb-3">Penerimaan</p>
                 <div className="space-y-2">
