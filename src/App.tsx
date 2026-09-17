@@ -9,6 +9,7 @@ import Landing from "./pages/Landing";
 import About from "./pages/About";
 import Calendar from "./pages/Calendar";
 import FinancialReport from "./pages/FinancialReport";
+import LayarTv from "./pages/LayarTv";
 import Articles from "./pages/Articles";
 import ArticleDetail from "./pages/ArticleDetail";
 import ArticleEditor from "./pages/ArticleEditor";
@@ -38,6 +39,11 @@ export default function App() {
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <Routes>
+          {/* Halaman layar TV -- SENGAJA di luar <PublicLayout> (tanpa
+              Navbar/Footer, full 1 layar) dan tanpa login, lihat
+              src/pages/LayarTv.tsx. */}
+          <Route path="/layar" element={<LayarTv />} />
+
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Landing />} />
             <Route path="/tentang" element={<About />} />

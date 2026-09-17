@@ -82,3 +82,21 @@ input[type="datetime-local"]::-webkit-date-and-time-value {
     border: none !important;
   }
 }
+
+/* Animasi geser dari kanan ke kiri untuk slide konten bergantian di halaman
+   Layar TV (lihat src/pages/LayarTv.tsx). Dipasang lewat prop `key` yang
+   berubah tiap ganti slide, supaya React remount elemennya & animasi ini
+   otomatis terulang dari awal tiap kali. */
+@keyframes layar-tv-slide-in {
+  from {
+    transform: translateX(6%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.layar-tv-slide {
+  animation: layar-tv-slide-in 0.7s ease-out;
+}
