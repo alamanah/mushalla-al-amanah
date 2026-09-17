@@ -106,6 +106,8 @@ export default function LaporanKeuanganTab({
       <div className="max-w-2xl mx-auto">
         {laporan && (
           <>
+            <h2 className="font-serif font-bold text-3xl text-primary-900 mb-6">Laporan Keuangan</h2>
+
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <p className="text-sm text-gray-400">Periode</p>
