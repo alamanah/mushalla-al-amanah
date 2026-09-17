@@ -5,9 +5,11 @@ import { ZONA_WAKTU } from "../lib/waktu";
 import { TABEL_INFAQ_BUKA_PUASA, TABEL_UP_BANK, TABEL_UP_TUNAI } from "../lib/tabelKeuangan";
 import { FinancialTransaction, LaporanPublikasi, PrayerOverride } from "../types";
 import LaporanKeuanganTab from "./dashboard/LaporanKeuanganTab";
-import KajianList from "../components/KajianList";
-import KhatibJumatList from "../components/KhatibJumatList";
-import InfaqCard from "../components/InfaqCard";
+import KajianListTv from "../components/layar-tv/KajianListTv";
+import KhatibJumatListTv from "../components/layar-tv/KhatibJumatListTv";
+import InfaqPanelTv from "../components/layar-tv/InfaqPanelTv";
+import HaditsPanelTv from "../components/layar-tv/HaditsPanelTv";
+import SosmedPanelTv from "../components/layar-tv/SosmedPanelTv";
 
 /** Cuma 6 field jam shalat (bukan "date"/"hijri" yang juga ada di
  * PrayerTimesResult) -- supaya `times[key]` di bawah selalu bertipe `string`
@@ -24,7 +26,7 @@ const PRAYER_ROWS: { key: PrayerKey; label: string }[] = [
 ];
 
 /** Urutan konten yang bergantian tampil di panel kanan. */
-const SLIDES = ["laporan", "kajian", "khatib", "infaq"] as const;
+const SLIDES = ["laporan", "kajian", "khatib", "infaq", "hadits", "sosmed"] as const;
 type SlideKey = (typeof SLIDES)[number];
 /** Lama tiap slide tampil sebelum geser ke slide berikutnya. */
 const DURASI_SLIDE_DETIK = 20;
@@ -38,10 +40,11 @@ const DURASI_SLIDE_DETIK = 20;
  * Beranda & halaman /keuangan.
  *
  * Tata letak: kolom KIRI jadi "frame" tetap berisi Jadwal Shalat (selalu
- * tampil, tidak ikut berganti) -- kolom KANAN bergantian menampilkan Laporan
- * Keuangan, Jadwal Kajian, Jadwal Khatib Jumat, dan info Rekening Infaq,
- * geser dari kanan ke kiri tiap `DURASI_SLIDE_DETIK` detik (lihat animasi
- * `.layar-tv-slide` di index.css).
+ * tampil, tidak ikut berganti) -- kolom KANAN bergantian menampilkan 6 slide:
+ * Laporan Keuangan (ringkas), Jadwal Kajian, Jadwal Khatib Jumat, info
+ * Rekening Infaq, Hadits Pilihan (berganti otomatis tiap hari), dan Media
+ * Sosial, geser dari kanan ke kiri tiap `DURASI_SLIDE_DETIK` detik (lihat
+ * animasi `.layar-tv-slide` di index.css).
  *
  * Halaman ini dirancang untuk dibiarkan menyala terus-menerus berhari-hari
  * di TV (lihat data disegarkan berkala lewat setInterval, BUKAN cuma sekali
@@ -221,11 +224,14 @@ export default function LayarTv() {
                 bukaPuasaItems={bukaPuasaItems}
                 showControls={false}
                 publishedPeriodes={publishedPeriodes}
+                compact
               />
             ))}
-          {slideAktif === "kajian" && <KajianList />}
-          {slideAktif === "khatib" && <KhatibJumatList />}
-          {slideAktif === "infaq" && <InfaqCard />}
+          {slideAktif === "kajian" && <KajianListTv />}
+          {slideAktif === "khatib" && <KhatibJumatListTv />}
+          {slideAktif === "infaq" && <InfaqPanelTv />}
+          {slideAktif === "hadits" && <HaditsPanelTv />}
+          {slideAktif === "sosmed" && <SosmedPanelTv />}
         </div>
 
         {/* Indikator slide aktif -- cuma penanda visual, tidak diklik (layar

@@ -31,6 +31,12 @@ interface Props {
   /** true selagi permintaan publikasikan/batalkan sedang diproses -- dipakai
    * menonaktifkan tombol supaya tidak diklik dobel. */
   publishing?: boolean;
+  /** true = tampilan super ringkas khusus Layar TV (src/pages/LayarTv.tsx):
+   * cuma Kriteria + Jumlah (tanpa nomor urut & kolom Keterangan), tanpa kop
+   * logo, font lebih besar supaya gampang dibaca dari jauh. Default false
+   * (tampilan lengkap seperti biasa). Tidak berlaku kalau `showControls`
+   * true (dashboard selalu tampilan lengkap). */
+  compact?: boolean;
 }
 
 export default function LaporanKeuanganTab({
@@ -40,6 +46,7 @@ export default function LaporanKeuanganTab({
   publishedPeriodes,
   onTogglePublish,
   publishing = false,
+  compact = false,
 }: Props) {
   const periodeOptions = useMemo(() => listPeriodeOptions(items), [items]);
 
@@ -91,6 +98,67 @@ export default function LaporanKeuanganTab({
       <p className="text-sm text-gray-400 text-center">
         Laporan periode berjalan belum dipublikasikan pengurus. Silakan cek kembali nanti.
       </p>
+    );
+  }
+
+  if (compact && !showControls) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        {laporan && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div>
+                <p className="text-sm text-gray-400">Periode</p>
+                <p className="font-serif font-bold text-2xl text-primary-900">
+                  {laporan.periode} &middot; {laporan.tahun}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Saldo Akhir</p>
+                <p className="font-bold text-3xl text-primary-800">{formatRupiah(laporan.saldoAkhir)}</p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="rounded-2xl bg-primary-50 border border-primary-100 p-5">
+                <p className="font-semibold text-primary-800 text-lg mb-3">Penerimaan</p>
+                <div className="space-y-2">
+                  {laporan.penerimaan.map((row) => (
+                    <div key={row.kriteria} className="flex items-center justify-between gap-2 text-base">
+                      <span className="text-gray-700">{row.kriteria}</span>
+                      <span className="font-semibold text-primary-700 shrink-0">
+                        {row.jumlah > 0 ? formatRupiah(row.jumlah) : "-"}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-2 text-lg font-bold text-primary-900 border-t border-primary-200 pt-2 mt-2">
+                    <span>Total</span>
+                    <span>{formatRupiah(laporan.totalPenerimaan)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-red-50 border border-red-100 p-5">
+                <p className="font-semibold text-red-800 text-lg mb-3">Pengeluaran</p>
+                <div className="space-y-2">
+                  {laporan.pengeluaran.map((row) => (
+                    <div key={row.kriteria} className="flex items-center justify-between gap-2 text-base">
+                      <span className="text-gray-700">{row.kriteria}</span>
+                      <span className="font-semibold text-red-600 shrink-0">
+                        {row.jumlah > 0 ? formatRupiah(row.jumlah) : "-"}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-2 text-lg font-bold text-red-900 border-t border-red-200 pt-2 mt-2">
+                    <span>Total</span>
+                    <span>{formatRupiah(laporan.totalPengeluaran)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     );
   }
 
