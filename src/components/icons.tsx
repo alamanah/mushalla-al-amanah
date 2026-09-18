@@ -112,6 +112,27 @@ export function IconClock(props: IconProps) {
   );
 }
 
+export function IconUsers(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+      <path d="M16 8.5a2.7 2.7 0 1 0 0-5.2" />
+      <path d="M15 14.3c2.5.3 4.5 2.2 4.5 5.2" />
+    </svg>
+  );
+}
+
+export function IconClipboardText(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" />
+      <path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5" />
+    </svg>
+  );
+}
+
 // ---- Ikon media sosial (flat, monokrom -- warnanya ikut currentColor
 // supaya gampang dipakai hitam/abu-abu polos, lihat socialPlatforms.tsx) ----
 

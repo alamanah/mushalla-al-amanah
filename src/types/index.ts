@@ -40,6 +40,10 @@ export interface KhatibJumatSchedule {
   id: string;
   tanggal: string; // "YYYY-MM-DD"
   nama_ustadz: string;
+  /** Nama Imam & Muadzin shalat Jumat -- opsional, dipakai mengisi Laporan
+   * Jumat otomatis (lihat src/lib/laporanJumat.ts). Migrasi 23. */
+  imam: string | null;
+  muadzin: string | null;
   link_youtube: string | null;
   live_video_id: string | null;
   live_by_name: string | null;

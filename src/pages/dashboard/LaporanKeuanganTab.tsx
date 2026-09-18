@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildLaporanKeuangan, listPeriodeOptions } from "../../lib/laporanKeuangan";
 import { FinancialTransaction } from "../../types";
+import LaporanJumatModal from "./LaporanJumatModal";
 
 function formatRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
@@ -85,6 +86,8 @@ export default function LaporanKeuanganTab({
     document.body.classList.add("printing");
     window.print();
   };
+
+  const [showLaporanJumat, setShowLaporanJumat] = useState(false);
 
   if (periodeOptions.length === 0) {
     return <p className="text-sm text-gray-400">Belum ada data transaksi untuk dibuatkan laporan.</p>;
@@ -216,8 +219,17 @@ export default function LaporanKeuanganTab({
                 🖨️ Unduh PDF
               </button>
             )}
+            {laporan && (
+              <button className="btn-secondary text-sm" onClick={() => setShowLaporanJumat(true)}>
+                📋 Buat Laporan Jumat
+              </button>
+            )}
           </div>
         </div>
+      )}
+
+      {showLaporanJumat && laporan && (
+        <LaporanJumatModal laporan={laporan} onClose={() => setShowLaporanJumat(false)} />
       )}
 
       {laporan && (

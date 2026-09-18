@@ -26,6 +26,7 @@ import {
   IconRefresh,
   IconStop,
   IconTrash,
+  IconUsers,
   IconYoutube,
 } from "../../components/icons";
 import {
@@ -855,6 +856,8 @@ const emptyKhatibForm = {
   ustadz: "",
   ustadzCustom: "",
   tanggal: "",
+  imam: "",
+  muadzin: "",
   link_youtube: "",
 };
 
@@ -870,6 +873,14 @@ function KhatibJumatSettings() {
   const [ytItem, setYtItem] = useState<KhatibJumatSchedule | null>(null);
   const [ytLinkInput, setYtLinkInput] = useState("");
   const [ytSaving, setYtSaving] = useState(false);
+
+  // ---- Nama Imam & Muadzin (bisa diisi/diubah lagi setelah jadwal dibuat,
+  // sama seperti link YouTube di atas) -- dipakai mengisi Laporan Jumat
+  // otomatis, lihat LaporanJumatModal.tsx. ----
+  const [imItem, setImItem] = useState<KhatibJumatSchedule | null>(null);
+  const [imamInput, setImamInput] = useState("");
+  const [muadzinInput, setMuadzinInput] = useState("");
+  const [imSaving, setImSaving] = useState(false);
 
   const load = () =>
     supabase
@@ -928,6 +939,8 @@ function KhatibJumatSettings() {
     await supabase.from("khatib_jumat_schedule").insert({
       tanggal: form.tanggal,
       nama_ustadz: namaUstadzInput,
+      imam: form.imam.trim() || null,
+      muadzin: form.muadzin.trim() || null,
       link_youtube: form.link_youtube.trim() || null,
       is_active: true,
     });
@@ -969,6 +982,29 @@ function KhatibJumatSettings() {
     await supabase.from("khatib_jumat_schedule").update({ link_youtube: ytLinkInput.trim() || null }).eq("id", ytItem.id);
     setYtSaving(false);
     closeYt();
+    load();
+  };
+
+  // ---- Nama Imam & Muadzin (bisa diisi/diubah lagi setelah jadwal dibuat) ----
+  const openImamMuadzin = (k: KhatibJumatSchedule) => {
+    setImItem(k);
+    setImamInput(k.imam ?? "");
+    setMuadzinInput(k.muadzin ?? "");
+  };
+  const closeImamMuadzin = () => {
+    setImItem(null);
+    setImamInput("");
+    setMuadzinInput("");
+  };
+  const saveImamMuadzin = async () => {
+    if (!imItem) return;
+    setImSaving(true);
+    await supabase
+      .from("khatib_jumat_schedule")
+      .update({ imam: imamInput.trim() || null, muadzin: muadzinInput.trim() || null })
+      .eq("id", imItem.id);
+    setImSaving(false);
+    closeImamMuadzin();
     load();
   };
 
@@ -1031,6 +1067,26 @@ function KhatibJumatSettings() {
           />
         </div>
 
+        <div>
+          <label className="label">Imam (opsional)</label>
+          <input
+            className="input"
+            placeholder="Nama imam shalat Jumat"
+            value={form.imam}
+            onChange={(e) => setForm({ ...form, imam: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <label className="label">Muadzin (opsional)</label>
+          <input
+            className="input"
+            placeholder="Nama muadzin shalat Jumat"
+            value={form.muadzin}
+            onChange={(e) => setForm({ ...form, muadzin: e.target.value })}
+          />
+        </div>
+
         <button className="btn-primary sm:col-span-3" disabled={saving || !namaUstadzInput}>
           {saving ? "Menyimpan..." : "Tambah Jadwal"}
         </button>
@@ -1071,6 +1127,13 @@ function KhatibJumatSettings() {
                     {formatTanggalPanjang(k.tanggal)}
                     {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
                   </p>
+                  {(k.imam || k.muadzin) && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {k.imam && <>Imam: {k.imam}</>}
+                      {k.imam && k.muadzin && " · "}
+                      {k.muadzin && <>Muadzin: {k.muadzin}</>}
+                    </p>
+                  )}
                   <div className="flex items-center gap-1.5 mt-1">
                     <IconButton
                       label={k.is_confirmed ? "Terkonfirmasi (klik untuk batalkan)" : "Belum Dikonfirmasi (klik untuk tandai)"}
@@ -1107,6 +1170,12 @@ function KhatibJumatSettings() {
                   </IconButton>
                   <IconButton label={k.link_youtube ? "Ganti Link YouTube" : "Tambah Link YouTube"} onClick={() => openYt(k)}>
                     <IconYoutube className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton
+                    label={k.imam || k.muadzin ? "Ubah Imam & Muadzin" : "Isi Imam & Muadzin"}
+                    onClick={() => openImamMuadzin(k)}
+                  >
+                    <IconUsers className="h-4 w-4" />
                   </IconButton>
                   {k.live_video_id ? (
                     <IconButton label="Akhiri Live" variant="live" onClick={() => endLive(k)}>
@@ -1153,6 +1222,45 @@ function KhatibJumatSettings() {
                 {ytSaving ? "Menyimpan..." : "Simpan Link"}
               </button>
               <button className="btn-secondary" onClick={closeYt}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {imItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="card max-w-sm w-full">
+            <h3 className="font-semibold text-gray-800 mb-1">{imItem.nama_ustadz}</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Nama Imam & Muadzin (opsional) untuk jadwal khutbah Jumat ini -- dipakai mengisi Laporan Jumat otomatis.
+            </p>
+            <div className="space-y-2">
+              <div>
+                <label className="label">Imam</label>
+                <input
+                  className="input"
+                  placeholder="Nama imam shalat Jumat"
+                  value={imamInput}
+                  onChange={(e) => setImamInput(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Muadzin</label>
+                <input
+                  className="input"
+                  placeholder="Nama muadzin shalat Jumat"
+                  value={muadzinInput}
+                  onChange={(e) => setMuadzinInput(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button className="btn-primary flex-1" disabled={imSaving} onClick={saveImamMuadzin}>
+                {imSaving ? "Menyimpan..." : "Simpan"}
+              </button>
+              <button className="btn-secondary" onClick={closeImamMuadzin}>
                 Batal
               </button>
             </div>
