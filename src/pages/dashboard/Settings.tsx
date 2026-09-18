@@ -857,7 +857,9 @@ const emptyKhatibForm = {
   ustadzCustom: "",
   tanggal: "",
   imam: "",
+  imamCustom: "",
   muadzin: "",
+  muadzinCustom: "",
   link_youtube: "",
 };
 
@@ -931,6 +933,8 @@ function KhatibJumatSettings() {
   const resetForm = () => setForm(emptyKhatibForm);
 
   const namaUstadzInput = form.ustadz === "__custom__" ? form.ustadzCustom.trim() : form.ustadz;
+  const namaImamInput = form.imam === "__custom__" ? form.imamCustom.trim() : form.imam;
+  const namaMuadzinInput = form.muadzin === "__custom__" ? form.muadzinCustom.trim() : form.muadzin;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -939,8 +943,8 @@ function KhatibJumatSettings() {
     await supabase.from("khatib_jumat_schedule").insert({
       tanggal: form.tanggal,
       nama_ustadz: namaUstadzInput,
-      imam: form.imam.trim() || null,
-      muadzin: form.muadzin.trim() || null,
+      imam: namaImamInput || null,
+      muadzin: namaMuadzinInput || null,
       link_youtube: form.link_youtube.trim() || null,
       is_active: true,
     });
@@ -1069,22 +1073,44 @@ function KhatibJumatSettings() {
 
         <div>
           <label className="label">Imam (opsional)</label>
-          <input
-            className="input"
-            placeholder="Nama imam shalat Jumat"
-            value={form.imam}
-            onChange={(e) => setForm({ ...form, imam: e.target.value })}
-          />
+          <select className="input" value={form.imam} onChange={(e) => setForm({ ...form, imam: e.target.value })}>
+            <option value="">- Pilih dari Referensi -</option>
+            {ustadzList.map((u) => (
+              <option key={u.id} value={u.nama}>
+                {u.nama}
+              </option>
+            ))}
+            <option value="__custom__">+ Lainnya (ketik manual)</option>
+          </select>
+          {form.imam === "__custom__" && (
+            <input
+              className="input mt-2"
+              placeholder="Nama imam shalat Jumat"
+              value={form.imamCustom}
+              onChange={(e) => setForm({ ...form, imamCustom: e.target.value })}
+            />
+          )}
         </div>
 
         <div>
           <label className="label">Muadzin (opsional)</label>
-          <input
-            className="input"
-            placeholder="Nama muadzin shalat Jumat"
-            value={form.muadzin}
-            onChange={(e) => setForm({ ...form, muadzin: e.target.value })}
-          />
+          <select className="input" value={form.muadzin} onChange={(e) => setForm({ ...form, muadzin: e.target.value })}>
+            <option value="">- Pilih dari Referensi -</option>
+            {ustadzList.map((u) => (
+              <option key={u.id} value={u.nama}>
+                {u.nama}
+              </option>
+            ))}
+            <option value="__custom__">+ Lainnya (ketik manual)</option>
+          </select>
+          {form.muadzin === "__custom__" && (
+            <input
+              className="input mt-2"
+              placeholder="Nama muadzin shalat Jumat"
+              value={form.muadzinCustom}
+              onChange={(e) => setForm({ ...form, muadzinCustom: e.target.value })}
+            />
+          )}
         </div>
 
         <button className="btn-primary sm:col-span-3" disabled={saving || !namaUstadzInput}>
@@ -1232,6 +1258,11 @@ function KhatibJumatSettings() {
       {imItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="card max-w-sm w-full">
+            <datalist id="referensi-nama-suggestions">
+              {ustadzList.map((u) => (
+                <option key={u.id} value={u.nama} />
+              ))}
+            </datalist>
             <h3 className="font-semibold text-gray-800 mb-1">{imItem.nama_ustadz}</h3>
             <p className="text-xs text-gray-500 mb-3">
               Nama Imam & Muadzin (opsional) untuk jadwal khutbah Jumat ini -- dipakai mengisi Laporan Jumat otomatis.
@@ -1244,6 +1275,7 @@ function KhatibJumatSettings() {
                   placeholder="Nama imam shalat Jumat"
                   value={imamInput}
                   onChange={(e) => setImamInput(e.target.value)}
+                  list="referensi-nama-suggestions"
                 />
               </div>
               <div>
@@ -1253,6 +1285,7 @@ function KhatibJumatSettings() {
                   placeholder="Nama muadzin shalat Jumat"
                   value={muadzinInput}
                   onChange={(e) => setMuadzinInput(e.target.value)}
+                  list="referensi-nama-suggestions"
                 />
               </div>
             </div>

@@ -9,6 +9,11 @@ const ASSIGNABLE_ROLES: AppRole[] = ["humas", "bendahara", "inventaris"];
 
 const emptyUstadzForm = { nama: "", kontak: "", bidang: "", keterangan: "", bank_name: "", account_number: "" };
 
+// Saran isian "Bidang/Spesialisasi" -- tabel ini memang dipakai sebagai
+// rujukan umum (bukan cuma ustadz/penceramah), jadi Imam, Muadzin, Marbot,
+// dst juga didata di sini. Sekadar saran (datalist), tetap bisa diisi bebas.
+const BIDANG_SUGGESTIONS = ["Khatib/Penceramah", "Imam", "Muadzin", "Marbot", "Fiqih", "Tahsin", "Tahfidz"];
+
 function TabUser() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, AppRole[]>>({});
@@ -117,6 +122,7 @@ function TabUstadz() {
   const [form, setForm] = useState(emptyUstadzForm);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [filterBidang, setFilterBidang] = useState<string>("Semua");
 
   const load = () => {
     setLoading(true);
@@ -183,12 +189,20 @@ function TabUstadz() {
   };
 
   const remove = async (u: Ustadz) => {
-    if (!confirm(`Hapus data ustadz "${u.nama}"?`)) return;
+    if (!confirm(`Hapus data "${u.nama}"?`)) return;
     await supabase.from("ustadz").delete().eq("id", u.id);
     load();
   };
 
-  const itemsTampil = items.filter((u) => u.nama.toLowerCase().includes(search.trim().toLowerCase()));
+  // Kategori bidang yang benar-benar ada di data (di luar saran default) --
+  // supaya chip filter juga mengikuti kalau pengurus mengisi bidang lain yang
+  // belum ada di BIDANG_SUGGESTIONS.
+  const kategoriTersedia = Array.from(new Set(items.map((u) => u.bidang).filter((v): v is string => !!v))).sort();
+  const filterOptions = ["Semua", ...Array.from(new Set([...BIDANG_SUGGESTIONS, ...kategoriTersedia]))];
+
+  const itemsTampil = items
+    .filter((u) => u.nama.toLowerCase().includes(search.trim().toLowerCase()))
+    .filter((u) => filterBidang === "Semua" || u.bidang === filterBidang);
 
   return (
     <div>
@@ -197,18 +211,25 @@ function TabUstadz() {
           <option key={b} value={b} />
         ))}
       </datalist>
+      <datalist id="bidang-suggestions">
+        {BIDANG_SUGGESTIONS.map((b) => (
+          <option key={b} value={b} />
+        ))}
+      </datalist>
 
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">Daftar ustadz/penceramah untuk rujukan internal pengurus.</p>
+        <p className="text-sm text-gray-500">
+          Daftar ustadz, imam, muadzin, marbot, dan petugas lain untuk rujukan internal pengurus.
+        </p>
         <button className="btn-primary !py-1.5 !px-3 text-sm" onClick={startAdd}>
-          + Tambah Ustadz
+          + Tambah Data
         </button>
       </div>
 
       {showForm && (
         <form onSubmit={submit} className="card mb-6 grid sm:grid-cols-2 gap-3">
           <h2 className="sm:col-span-2 font-semibold text-gray-800">
-            {editingId ? "Sunting Data Ustadz" : "Tambah Ustadz"}
+            {editingId ? "Sunting Data" : "Tambah Data Ustadz/Petugas"}
           </h2>
           <div>
             <label className="label">Nama</label>
@@ -228,12 +249,13 @@ function TabUstadz() {
             />
           </div>
           <div>
-            <label className="label">Bidang/Spesialisasi</label>
+            <label className="label">Bidang/Peran</label>
             <input
               className="input"
               value={form.bidang}
               onChange={(e) => setForm({ ...form, bidang: e.target.value })}
-              placeholder="mis. Fiqih, Tahsin, dst."
+              placeholder="mis. Imam, Muadzin, Marbot, Fiqih, dst."
+              list="bidang-suggestions"
             />
           </div>
           <div>
@@ -274,17 +296,31 @@ function TabUstadz() {
         </form>
       )}
 
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {filterOptions.map((b) => (
+          <button
+            key={b}
+            onClick={() => setFilterBidang(b)}
+            className={`badge border ${
+              filterBidang === b ? "bg-primary-700 text-white border-primary-700" : "bg-white text-gray-500 border-gray-200"
+            }`}
+          >
+            {b}
+          </button>
+        ))}
+      </div>
+
       <input
         className="input max-w-xs mb-4"
-        placeholder="Cari nama ustadz..."
+        placeholder="Cari nama..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
 
       {loading && <p className="text-sm text-gray-400">Memuat...</p>}
-      {!loading && items.length === 0 && <p className="text-sm text-gray-400">Belum ada data ustadz.</p>}
+      {!loading && items.length === 0 && <p className="text-sm text-gray-400">Belum ada data.</p>}
       {!loading && items.length > 0 && itemsTampil.length === 0 && (
-        <p className="text-sm text-gray-400">Tidak ditemukan ustadz dengan nama tersebut.</p>
+        <p className="text-sm text-gray-400">Tidak ditemukan data yang cocok.</p>
       )}
 
       <div className="space-y-3">
@@ -337,7 +373,7 @@ export default function Referensi() {
             tab === "ustadz" ? "bg-primary-700 text-white border-primary-700" : "bg-white text-gray-500 border-gray-200"
           }`}
         >
-          Ustadz
+          Ustadz & Petugas
         </button>
       </div>
       {tab === "user" ? <TabUser /> : <TabUstadz />}

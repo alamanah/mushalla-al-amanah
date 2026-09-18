@@ -78,6 +78,13 @@ export default function KhatibJumatList() {
                   {formatTanggal(k.tanggal)}
                   {hijriMap[k.tanggal] && ` · ${hijriMap[k.tanggal]}`}
                 </p>
+                {(k.imam || k.muadzin) && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {k.imam && <>Imam: {k.imam}</>}
+                    {k.imam && k.muadzin && " · "}
+                    {k.muadzin && <>Muadzin: {k.muadzin}</>}
+                  </p>
+                )}
               </div>
             </div>
             {k.live_video_id && (
