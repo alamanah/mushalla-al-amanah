@@ -1,5 +1,5 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
-import { buildLaporanKeuangan, LaporanKeuanganResult, listPeriodeOptions } from "../../lib/laporanKeuangan";
+import { useEffect, useMemo, useState } from "react";
+import { buildLaporanKeuangan, listPeriodeOptions } from "../../lib/laporanKeuangan";
 import { FinancialTransaction } from "../../types";
 
 function formatRupiah(n: number) {
@@ -37,12 +37,6 @@ interface Props {
    * (tampilan lengkap seperti biasa). Tidak berlaku kalau `showControls`
    * true (dashboard selalu tampilan lengkap). */
   compact?: boolean;
-  /** Tombol aksi tambahan (mis. "Buat Laporan Jumat") yang dirender di
-   * sebelah "Unduh PDF", diisi oleh halaman pemanggil supaya
-   * LaporanKeuanganTab tidak perlu tahu soal modal-modal semacam itu --
-   * lihat LaporanPage.tsx (menu "Laporan" di sidebar, bisa diakses semua
-   * role). Cuma dirender saat `showControls` & `laporan` ada. */
-  extraActions?: (laporan: LaporanKeuanganResult) => ReactNode;
 }
 
 export default function LaporanKeuanganTab({
@@ -53,7 +47,6 @@ export default function LaporanKeuanganTab({
   onTogglePublish,
   publishing = false,
   compact = false,
-  extraActions,
 }: Props) {
   const periodeOptions = useMemo(() => listPeriodeOptions(items), [items]);
 
@@ -223,7 +216,6 @@ export default function LaporanKeuanganTab({
                 🖨️ Unduh PDF
               </button>
             )}
-            {laporan && extraActions?.(laporan)}
           </div>
         </div>
       )}

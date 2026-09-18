@@ -59,6 +59,12 @@ input[type="datetime-local"]::-webkit-date-and-time-value {
    yang ditandai .print-area (lihat LaporanKeuanganTab.tsx). Diaktifkan
    dengan menambahkan class "printing" ke <body> sebelum window.print(). */
 @media print {
+  /* Margin bawaan browser cukup lebar (~15-20mm tiap sisi) -- dikecilkan
+     supaya konten (mis. Laporan Jumat yang ditarget muat 1 halaman, lihat
+     LaporanJumatModal.tsx) punya lebih banyak ruang. */
+  @page {
+    margin: 10mm 12mm;
+  }
   html {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

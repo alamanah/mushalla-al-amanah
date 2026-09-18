@@ -3,9 +3,8 @@ import { supabase } from "../../lib/supabaseClient";
 import { TABEL_INFAQ_BUKA_PUASA, TABEL_UP_BANK, TABEL_UP_TUNAI } from "../../lib/tabelKeuangan";
 import { bulanKeyDari, bulanKeySekarang, bulanOptionsDari, labelBulan } from "../../lib/bulanFilter";
 import { fetchHijriMap } from "../../lib/prayerTimes";
-import { LaporanKeuanganResult } from "../../lib/laporanKeuangan";
+import { buildLaporanKeuangan, listPeriodeOptions } from "../../lib/laporanKeuangan";
 import { FinancialTransaction, KhatibJumatSchedule } from "../../types";
-import LaporanKeuanganTab from "./LaporanKeuanganTab";
 import LaporanJumatModal from "./LaporanJumatModal";
 import PetugasJumatModal from "./PetugasJumatModal";
 
@@ -16,13 +15,17 @@ function formatTanggal(tgl: string) {
 
 /**
  * Menu "Laporan" di sidebar dashboard -- BEDA dari "Keuangan" (khusus
- * admin/bendahara, buat catat transaksi) dan "Pengaturan Konten" (khusus
- * admin/humas, buat atur jadwal Khatib Jumat): halaman ini cuma berisi
- * alat-alat LIHAT & BAGIKAN laporan/pengumuman, jadi dibuka untuk SEMUA role
- * pengurus (lihat App.tsx & DashboardLayout.tsx) -- siapa saja yang perlu
- * mengunduh PDF Laporan Keuangan, membuat teks Laporan Jumat, atau
- * membagikan info petugas Sholat Jumat ke WA, tidak perlu akses Keuangan
- * atau Pengaturan Konten dulu.
+ * admin/bendahara, buat catat transaksi & lihat laporan keuangan lengkap
+ * per kriteria) dan "Pengaturan Konten" (khusus admin/humas, buat atur
+ * jadwal Khatib Jumat): halaman ini SENGAJA dibuat sesimpel mungkin, cuma
+ * dua hal -- (1) pilih periode + tombol "Buat Laporan" (teks Laporan Jumat
+ * siap-tempel ke WA + PDF ringkas 1 halaman, lihat LaporanJumatModal.tsx),
+ * dan (2) daftar jadwal Khatib Jumat + tombol "Bagikan" (pesan Petugas
+ * Jumat siap-tempel ke WA, lihat PetugasJumatModal.tsx) -- supaya SEMUA
+ * role pengurus (lihat App.tsx & DashboardLayout.tsx) bisa langsung
+ * membuat/membagikan pengumuman mingguan tanpa perlu akses Keuangan atau
+ * Pengaturan Konten dulu. TIDAK menampilkan tabel rincian transaksi
+ * (itu tetap di menu Keuangan) -- sengaja diringkas.
  */
 export default function LaporanPage() {
   const [loading, setLoading] = useState(true);
@@ -32,7 +35,8 @@ export default function LaporanPage() {
   const [khatibList, setKhatibList] = useState<KhatibJumatSchedule[]>([]);
   const [hijriMap, setHijriMap] = useState<Record<string, string | null>>({});
   const [bulan, setBulan] = useState(bulanKeySekarang());
-  const [laporanJumat, setLaporanJumat] = useState<LaporanKeuanganResult | null>(null);
+  const [periodeOverride, setPeriodeOverride] = useState<string | null>(null);
+  const [showLaporanJumat, setShowLaporanJumat] = useState(false);
   const [petugasItem, setPetugasItem] = useState<KhatibJumatSchedule | null>(null);
 
   useEffect(() => {
@@ -54,9 +58,17 @@ export default function LaporanPage() {
   }, []);
 
   // Laporan Keuangan dihitung dari gabungan UP Bank + UP Tunai, sama seperti
-  // di Dashboard > Keuangan > tab Laporan -- lihat catatan di
-  // laporanKeuangan.ts (buildLaporanKeuangan).
+  // di Dashboard > Keuangan -- lihat catatan di laporanKeuangan.ts
+  // (buildLaporanKeuangan). Sengaja TIDAK ditampilkan sebagai tabel di
+  // halaman ini (lihat komentar di atas) -- cuma dipakai buat mengisi teks
+  // Laporan Jumat.
   const laporanItems = useMemo(() => [...upBankRows, ...upTunaiRows], [upBankRows, upTunaiRows]);
+  const periodeOptions = useMemo(() => listPeriodeOptions(laporanItems), [laporanItems]);
+  const periode = periodeOverride ?? periodeOptions[0] ?? "";
+  const laporan = useMemo(
+    () => (periode ? buildLaporanKeuangan(laporanItems, periode, bukaPuasaRows) : null),
+    [laporanItems, bukaPuasaRows, periode]
+  );
 
   const bulanOptions = useMemo(() => bulanOptionsDari(khatibList.map((k) => k.tanggal)), [khatibList]);
   const khatibBulanIni = useMemo(() => khatibList.filter((k) => bulanKeyDari(k.tanggal) === bulan), [khatibList, bulan]);
@@ -66,25 +78,32 @@ export default function LaporanPage() {
       <div>
         <h1 className="font-serif text-2xl font-bold text-primary-900 mb-1">Laporan</h1>
         <p className="text-sm text-gray-500">
-          Lihat & unduh Laporan Keuangan mingguan, buat teks Laporan Jumat siap-tempel, atau bagikan info petugas
-          Sholat Jumat ke WA.
+          Buat teks Laporan Jumat siap-tempel ke WA (+ unduh PDF), atau bagikan info petugas Sholat Jumat.
         </p>
       </div>
 
       <section>
-        <h2 className="font-serif font-bold text-lg text-primary-900 mb-3">Laporan Keuangan</h2>
+        <h2 className="font-serif font-bold text-lg text-primary-900 mb-3">Laporan Jumat</h2>
         {loading ? (
           <p className="text-sm text-gray-400">Memuat data...</p>
+        ) : periodeOptions.length === 0 ? (
+          <p className="text-sm text-gray-400">Belum ada data transaksi untuk dibuatkan laporan.</p>
         ) : (
-          <LaporanKeuanganTab
-            items={laporanItems}
-            bukaPuasaItems={bukaPuasaRows}
-            extraActions={(laporan) => (
-              <button className="btn-secondary text-sm" onClick={() => setLaporanJumat(laporan)}>
-                📋 Buat Laporan Jumat
-              </button>
-            )}
-          />
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="label">Pilih Periode</label>
+              <select className="input max-w-[200px]" value={periode} onChange={(e) => setPeriodeOverride(e.target.value)}>
+                {periodeOptions.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className="btn-primary" disabled={!laporan} onClick={() => setShowLaporanJumat(true)}>
+              📋 Buat Laporan
+            </button>
+          </div>
         )}
       </section>
 
@@ -128,7 +147,7 @@ export default function LaporanPage() {
         </div>
       </section>
 
-      {laporanJumat && <LaporanJumatModal laporan={laporanJumat} onClose={() => setLaporanJumat(null)} />}
+      {showLaporanJumat && laporan && <LaporanJumatModal laporan={laporan} onClose={() => setShowLaporanJumat(false)} />}
       {petugasItem && <PetugasJumatModal khatib={petugasItem} onClose={() => setPetugasItem(null)} />}
     </div>
   );

@@ -1,5 +1,5 @@
 import { LaporanKeuanganResult } from "./laporanKeuangan";
-import { ZONA_WAKTU } from "./waktu";
+import { formatWita, ZONA_WAKTU } from "./waktu";
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");
@@ -21,7 +21,7 @@ export function tanggalJumatDefault(now: Date = new Date()): string {
   return toYMD(wita);
 }
 
-function formatAngka(n: number): string {
+export function formatAngka(n: number): string {
   return new Intl.NumberFormat("id-ID").format(Math.round(n));
 }
 
@@ -37,12 +37,17 @@ export function formatTanggalJumatPanjang(tanggal: string): string {
   return new Date(y, m - 1, d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/** Rentang kode Unicode huruf Arab (termasuk tanda baca/harakat) -- dipakai
- * untuk mendeteksi baris mana di teks hasil generate yang perlu dirender
- * rata-kanan/RTL (mis. saat dijadikan PDF, lihat LaporanJumatModal.tsx). */
-const ARABIC_RE = /[؀-ۿݐ-ݿࢠ-ࣿ]/;
-export function isArabicLine(line: string): boolean {
-  return ARABIC_RE.test(line);
+/** Tanggal "Per ..." pada baris Laporan Keuangan -- `tanggalTerakhir` itu
+ * timestamptz (mis. "2026-09-17T06:00:00+08:00"), BUKAN tanggal polos
+ * "YYYY-MM-DD", jadi jangan diparsing pakai formatTanggalJumatPanjang (bisa
+ * hasilkan "Invalid Date") melainkan formatWita yang memang dibuat utk
+ * parsing timestamptz + konversi ke zona WITA. Baliknya ke tanggalJumat
+ * (tanggal Jumat yang laporannya dibuat) kalau belum ada transaksi sama
+ * sekali pada periode itu. */
+export function perTanggalLaporan(laporan: LaporanKeuanganResult, tanggalJumat: string): string {
+  return laporan.tanggalTerakhir
+    ? formatWita(laporan.tanggalTerakhir, { day: "numeric", month: "long", year: "numeric" })
+    : formatTanggalJumatPanjang(tanggalJumat);
 }
 
 /** Teks tetap "Pembaca Informasi" pada pengumuman Petugas Sholat Jumat --
@@ -80,7 +85,7 @@ export function buildLaporanJumatText(data: LaporanJumatData): string {
   const { laporan, tanggalJumat, hijri, waktuJumat, namaKhotib, namaImam, namaMuadzin } = data;
 
   const periodeLabel = labelPeriodeJumat(laporan.periode);
-  const perTanggal = formatTanggalJumatPanjang(laporan.tanggalTerakhir ?? tanggalJumat);
+  const perTanggal = perTanggalLaporan(laporan, tanggalJumat);
   const tanggalPanjang = formatTanggalJumatPanjang(tanggalJumat);
   const waktu = (waktuJumat ?? "12:00").replace(":", ".");
 
