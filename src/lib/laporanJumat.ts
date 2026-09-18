@@ -37,6 +37,18 @@ export function formatTanggalJumatPanjang(tanggal: string): string {
   return new Date(y, m - 1, d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 }
 
+/** Rentang kode Unicode huruf Arab (termasuk tanda baca/harakat) -- dipakai
+ * untuk mendeteksi baris mana di teks hasil generate yang perlu dirender
+ * rata-kanan/RTL (mis. saat dijadikan PDF, lihat LaporanJumatModal.tsx). */
+const ARABIC_RE = /[؀-ۿݐ-ݿࢠ-ࣿ]/;
+export function isArabicLine(line: string): boolean {
+  return ARABIC_RE.test(line);
+}
+
+/** Teks tetap "Pembaca Informasi" pada pengumuman Petugas Sholat Jumat --
+ * lihat catatan di buildPetugasJumatText(). */
+export const PEMBACA_INFORMASI_DEFAULT = "Pengurus DKM Al Amanah";
+
 export interface LaporanJumatData {
   laporan: LaporanKeuanganResult;
   /** Tanggal Jumat yang laporannya dibuat, format "YYYY-MM-DD". */
@@ -84,9 +96,10 @@ export function buildLaporanJumatText(data: LaporanJumatData): string {
     .forEach((r) => moneyLines.push(`      ● ${formatAngka(r.jumlah)} ${r.kriteria}`));
   moneyLines.push(`   ● Saldo Akhir : ${formatAngka(laporan.saldoAkhir)}`);
 
-  return `Bismillahirrahmanirrahim,
-Assalamu'alaikum warahmatullohi wabarakaatuh.
-Alhamdulillah, wasSholatu wassalamu 'ala rasulillah, wa'ala aalihi wa ash habihi wa man waalah
+  return `بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
+
+الْحَمْدُ لِلَّهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَى رَسُولِ اللَّهِ وَعَلَى آلِهِ وَأَصْحَابِهِ وَمَنْ وَالَاهُ
 
 Mohon perhatian Jama'ah rahimakumullah atas informasi yang akan kami sampaikan :
 
@@ -119,5 +132,54 @@ Jum'at${hijri ? `, ${hijri}` : ""} | ${tanggalPanjang} adalah sbb :
 6. InSya Allah jadwal waktu sholat Jum'at hari ini pukul ${waktu} WITA.
 
 Demikian, atas perhatiannya kami sampaikan, Jazakumullahu khairan katsir,
-Wassalamu'alaikum wr wb`;
+
+وَالسَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ`;
+}
+
+export interface PetugasJumatData {
+  /** Tanggal Jumat yang diumumkan, format "YYYY-MM-DD". */
+  tanggalJumat: string;
+  hijri: string | null;
+  waktuJumat: string | null;
+  namaKhotib: string | null;
+  namaImam: string | null;
+  namaMuadzin: string | null;
+}
+
+/**
+ * Susun teks pengumuman singkat "Petugas Sholat Jumat" siap-tempel ke WA --
+ * BEDA dari buildLaporanJumatText() di atas (yang isinya laporan keuangan
+ * lengkap + agenda + tata tertib): ini cuma kabar singkat siapa yang
+ * bertugas Jumat ini, meniru gaya pengumuman yang lazim dibagikan pengurus
+ * DKM lain di grup WA (format *tebal* = format WhatsApp, jadi tercetak
+ * tebal beneran begitu ditempel di WA). Baris "Pembaca Informasi" sengaja
+ * berupa teks tetap (PEMBACA_INFORMASI_DEFAULT), tidak perlu diisi ulang
+ * tiap minggu.
+ */
+export function buildPetugasJumatText(data: PetugasJumatData): string {
+  const { tanggalJumat, hijri, waktuJumat, namaKhotib, namaImam, namaMuadzin } = data;
+  const tanggalPanjang = formatTanggalJumatPanjang(tanggalJumat);
+  const waktu = (waktuJumat ?? "12:00").replace(":", ".");
+
+  return `السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
+
+Mohon izin share petugas sholat Jum'at di *Mushalla Al Amanah GKN I Denpasar* untuk *Hari Jum'at${
+    hijri ? `, ${hijri}` : ""
+  } | ${tanggalPanjang}*
+
+*Khotib* :
+*${namaKhotib || "-"}*
+
+*Imam* :
+*${namaImam || "-"}*
+
+*Muadzin* :
+*${namaMuadzin || "-"}*
+
+*Pembaca Informasi* :
+*${PEMBACA_INFORMASI_DEFAULT}*
+
+*Dzuhur* : *${waktu} WITA*
+
+Semoga menjadi amal jariyah dan semoga kita semua senantiasa diberikan kesehatan dan kebahagiaan serta keberkahan hidup, aamiin 🤲`;
 }

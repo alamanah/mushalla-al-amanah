@@ -884,6 +884,7 @@ function KhatibJumatSettings() {
   const [muadzinInput, setMuadzinInput] = useState("");
   const [imSaving, setImSaving] = useState(false);
 
+
   const load = () =>
     supabase
       .from("khatib_jumat_schedule")
@@ -1300,6 +1301,7 @@ function KhatibJumatSettings() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 import DashboardHome from "./pages/dashboard/DashboardHome";
+import LaporanPage from "./pages/dashboard/LaporanPage";
 import UserVerification from "./pages/dashboard/UserVerification";
 import Referensi from "./pages/dashboard/Referensi";
 import ArticleModeration from "./pages/dashboard/ArticleModeration";
@@ -70,6 +71,9 @@ export default function App() {
             }
           >
             <Route index element={<DashboardHome />} />
+            {/* Bisa diakses semua role pengurus (sama seperti "Ringkasan" di
+                atas) -- lihat catatan di LaporanPage.tsx. */}
+            <Route path="laporan" element={<LaporanPage />} />
             <Route
               path="verifikasi-user"
               element={
