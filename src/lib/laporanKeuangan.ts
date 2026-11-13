@@ -1,5 +1,4 @@
 import { FinancialKriteria, FinancialTransaction } from "../types";
-import { computeRunningSaldo } from "./saldo";
 export { listPeriodeOptions } from "./saran";
 
 /** Kriteria yang dikelola di tab tersendiri (Qurban/Donasi/Ramadhan/Buka Puasa)
@@ -66,6 +65,60 @@ export interface LaporanKeuanganResult {
   totalBukaPuasa: number;
 }
 
+/** Ekstrak nomor pekan dari label Periode (mis. "Pekan 41" -> 41) -- null
+ * kalau labelnya tidak mengikuti pola "Pekan N" (custom/manual), dipakai
+ * hitungSaldoAwal() di bawah utk menentukan urutan antar periode. */
+function nomorPekan(periode: string): number | null {
+  const n = Number(periode.match(/\d+/)?.[0]);
+  return Number.isNaN(n) ? null : n;
+}
+
+/**
+ * Saldo Awal suatu periode = Saldo Akhir periode SEBELUMNYA (diurutkan dari
+ * NOMOR "Pekan N"-nya) + total baris Kriteria "Saldo Awal" yang berlabel
+ * periode ini sendiri (dipakai kalau bendahara menyuntik/koreksi saldo lewat
+ * tombol "Rekam Saldo Awal", mis. buka rekening baru).
+ *
+ * SENGAJA TIDAK lagi memotong berdasar urutan TANGGAL transaksi secara
+ * global (cara lama, lihat riwayat git) -- di praktiknya urutan tanggal
+ * transaksi UP Tunai (kas) vs Bank sering tidak pas pindah pekan bersamaan
+ * (mis. pengeluaran UP Tunai Pekan 44 kadang baru dicatat beberapa hari
+ * setelah transaksi bank Pekan 45 pertama masuk, atau sebaliknya), jadi
+ * potongan berdasar tanggal gampang salah ambil titik -- Saldo Akhir pekan
+ * ini & Saldo Awal pekan berikutnya jadi tidak nyambung padahal keduanya
+ * "benar" menurut datanya masing-masing. Mengikuti nomor Pekan jauh lebih
+ * stabil karena sama sekali tidak peduli urutan tanggal transaksi per
+ * baris, asal nomor pekannya sendiri yang benar.
+ *
+ * Melompati nomor pekan yang kosong (tidak ada transaksi sama sekali di
+ * periode itu). Kalau tidak ada periode sebelumnya yang punya data (ini
+ * periode paling awal, atau label Periode-nya tidak mengikuti pola
+ * "Pekan N"), baliknya 0 (ditambah baris Saldo Awal milik periode ini
+ * sendiri kalau ada).
+ */
+function hitungSaldoAwal(reportable: FinancialTransaction[], periode: string): number {
+  const sumSaldoAwalSendiri = reportable
+    .filter((t) => t.periode === periode && t.kriteria === "Saldo Awal")
+    .reduce((sum, t) => sum + Number(t.debet) - Number(t.kredit), 0);
+
+  const nomor = nomorPekan(periode);
+  if (nomor === null) return sumSaldoAwalSendiri;
+
+  let sebelumnya: { label: string; nomor: number } | null = null;
+  for (const p of new Set(reportable.map((t) => t.periode))) {
+    const n = nomorPekan(p);
+    if (n === null || n >= nomor) continue;
+    if (!sebelumnya || n > sebelumnya.nomor) sebelumnya = { label: p, nomor: n };
+  }
+  if (!sebelumnya) return sumSaldoAwalSendiri;
+
+  const saldoAwalSebelumnya = hitungSaldoAwal(reportable, sebelumnya.label);
+  const totalSebelumnya = reportable
+    .filter((t) => t.periode === sebelumnya!.label && t.kriteria !== "Saldo Awal")
+    .reduce((sum, t) => sum + Number(t.debet) - Number(t.kredit), 0);
+  return saldoAwalSebelumnya + totalSebelumnya + sumSaldoAwalSendiri;
+}
+
 /**
  * Bangun laporan keuangan mingguan untuk satu `periode` (mis. "Pekan 37").
  *
@@ -78,10 +131,8 @@ export interface LaporanKeuanganResult {
  * - Kriteria "Setor/Terima UP Tunai" (mutasi internal bank<->tunai) juga
  *   dikeluarkan -- itu cuma perpindahan antar kantong, bukan penerimaan/
  *   pengeluaran sungguhan.
- * - Saldo Awal periode = saldo berjalan tepat SEBELUM transaksi pertama
- *   (non "Saldo Awal") pada periode ini -- otomatis ikut menjumlahkan baris
- *   "Saldo Awal" BRI + BSI + UP Tunai (dari tabel_up_bank & tabel_up_tunai)
- *   kalau itu yang mendahuluinya.
+ * - Saldo Awal periode = Saldo Akhir periode sebelumnya (lihat hitungSaldoAwal
+ *   di atas) -- dirantai berdasarkan NOMOR Pekan, bukan tanggal transaksi.
  */
 export function buildLaporanKeuangan(
   allItems: FinancialTransaction[],
@@ -94,11 +145,9 @@ export function buildLaporanKeuangan(
   const reportable = allItems.filter(
     (t) => !EXCLUDED_KRITERIA_DARI_LAPORAN.includes(t.kriteria) && !isBukaPuasa(t)
   );
-  const runningRows = computeRunningSaldo(reportable);
 
-  const idxFirst = runningRows.findIndex((r) => r.periode === periode && r.kriteria !== "Saldo Awal");
-  const rowsPeriode = runningRows.filter((r) => r.periode === periode && r.kriteria !== "Saldo Awal");
-  const saldoAwal = idxFirst > 0 ? runningRows[idxFirst - 1].saldo : 0;
+  const rowsPeriode = reportable.filter((t) => t.periode === periode && t.kriteria !== "Saldo Awal");
+  const saldoAwal = hitungSaldoAwal(reportable, periode);
 
   // "Admin" dipakai di KEDUA sisi -- Penerimaan (bunga/bagi hasil bank yang
   // masuk) MAUPUN Pengeluaran (potongan biaya admin bank) -- jadi barisnya

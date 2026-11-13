@@ -113,6 +113,7 @@ export default function FinancePage() {
   const [editForm, setEditForm] = useState<{
     tanggal: string;
     jenis: FinancialJenis;
+    periode: string;
     kriteria: FinancialKriteria;
     keterangan: string;
   } | null>(null);
@@ -456,10 +457,21 @@ export default function FinancePage() {
     setEditForm({
       tanggal: toWitaDatetimeLocal(row.tanggal),
       jenis: row.jenis,
+      periode: row.periode,
       kriteria: row.kriteria,
       keterangan: row.keterangan ?? "",
     });
   };
+  // Baris keuangan sering punya "pasangan" di tabel LAIN (mis. Kriteria
+  // "Setor UP Tunai" -> 1 baris di tabel_bank + 1 baris kontra di
+  // tabel_up_tunai; atau Jenis "BRI/BSI" -> tabel_bank + tabel_up_bank sama
+  // persis) yang dihasilkan bareng saat input lewat `jurnal_group_id` yang
+  // sama (lihat buildJurnalRows di tabelKeuangan.ts). Trigger DB (migrasi
+  // 024_sinkron_jurnal_ganda.sql) otomatis menyamakan Tanggal/Periode/
+  // Keterangan (dan Kriteria/Jenis KHUSUS ke pasangan yang sebelum diedit
+  // memang sama persis) ke semua baris pasangannya begitu salah satu
+  // di-update lewat SQL apa pun -- termasuk .update() di bawah ini -- jadi
+  // tidak perlu ditangani manual lagi di sisi aplikasi.
   const saveEdit = async (id: string) => {
     if (!editForm || !currentTable) return;
     const { error } = await supabase
@@ -467,6 +479,7 @@ export default function FinancePage() {
       .update({
         tanggal: datetimeLocalToWitaIso(editForm.tanggal),
         jenis: editForm.jenis,
+        periode: editForm.periode,
         kriteria: editForm.kriteria,
         keterangan: editForm.keterangan,
       })
@@ -907,7 +920,18 @@ export default function FinancePage() {
                       <span className="badge bg-primary-50 text-primary-700">{t.jenis}</span>
                     )}
                   </td>
-                  <td className="py-2 pr-3 truncate text-gray-500">{t.periode}</td>
+                  <td className="py-2 pr-3 truncate text-gray-500">
+                    {editingId === t.id ? (
+                      <input
+                        className="input !text-xs !py-1 !w-28"
+                        value={editForm?.periode}
+                        onChange={(e) => setEditForm((f) => (f ? { ...f, periode: e.target.value } : f))}
+                        list="periode-suggestions"
+                      />
+                    ) : (
+                      t.periode
+                    )}
+                  </td>
                   <td className="py-2 pr-3 truncate">
                     {editingId === t.id ? (
                       <select
